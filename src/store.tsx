@@ -33,6 +33,13 @@ export type PageInput =
 
 export type Toast = { id: number; msg: string; icon?: "ok" | "heart" | "star" | "info" };
 
+export type WatchProgress = {
+  ep: number;
+  time: number;
+  totalEp?: number;
+  updatedAt: number;
+};
+
 type Persist = {
   likes: number[];
   favs: number[];
@@ -44,6 +51,7 @@ type Persist = {
   vipExpireAt: number; // 0=未开通, -1=永久, >0=到期毫秒时间戳
   vipCode: string;
   deviceId: string;
+  progress: Record<number, WatchProgress>;
 };
 
 function genDeviceId(): string {
@@ -58,6 +66,7 @@ const DEFAULTS: Persist = {
   likes: [], favs: [], history: [], follows: [],
   muted: true, volume: 0.7, searchHist: [],
   vipExpireAt: 0, vipCode: "", deviceId: "",
+  progress: {},
 };
 
 function loadPersist(): Persist {
@@ -160,6 +169,10 @@ type Store = {
   vipModalOpen: boolean;
   setVipModalOpen: (b: boolean) => void;
   activateVip: (rawCode: string) => { ok: boolean; msg: string };
+  /* 剧集断点续播进度 */
+  progress: Record<number, WatchProgress>;
+  saveProgress: (id: number, ep: number, time: number, totalEp?: number, force?: boolean) => void;
+  getProgress: (id: number) => WatchProgress | undefined;
 };
 
 const Ctx = createContext<Store>(null as unknown as Store);
@@ -234,8 +247,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addHistory = useCallback((id: number) => {
     setP((s) => ({ ...s, history: [id, ...s.history.filter((x) => x !== id)].slice(0, 80) }));
   }, []);
-  const clearHistory = useCallback(() => setP((s) => ({ ...s, history: [] })), []);
-  const clearLocal = useCallback(() => setP((s) => ({ ...s, likes: [], favs: [], history: [], searchHist: [] })), []);
+  const clearHistory = useCallback(() => setP((s) => ({ ...s, history: [], progress: {} })), []);
+  const clearLocal = useCallback(() => setP((s) => ({ ...s, likes: [], favs: [], history: [], searchHist: [], progress: {} })), []);
+  const saveProgress = useCallback((id: number, ep: number, time: number, totalEp?: number, force = false) => {
+    if (!id || ep < 1) return;
+    setP((s) => {
+      const prev = s.progress?.[id];
+      const cleanTime = Math.max(0, Math.floor(time));
+      if (
+        !force &&
+        prev &&
+        prev.ep === ep &&
+        Math.abs(prev.time - cleanTime) < 3 &&
+        (!totalEp || prev.totalEp === totalEp)
+      ) {
+        return s;
+      }
+      return {
+        ...s,
+        progress: {
+          ...(s.progress || {}),
+          [id]: {
+            ep,
+            time: cleanTime,
+            totalEp: totalEp || prev?.totalEp,
+            updatedAt: Date.now(),
+          },
+        },
+      };
+    });
+  }, []);
+  const getProgress = useCallback((id: number) => p.progress?.[id], [p.progress]);
   const addSearch = useCallback((q: string) => {
     const t = q.trim();
     if (!t) return;
@@ -339,10 +381,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     vipModalOpen,
     setVipModalOpen,
     activateVip,
+    progress: p.progress || {},
+    saveProgress,
+    getProgress,
   }), [theme, tab, setTab, stack, push, pop, user, loginOpen, logout,
     p, toggleLikeLocal, toggleFavLocal, toggleFollowLocal, addHistory, clearHistory, clearLocal,
     setMuted, setVolume, addSearch, clearSearchHist, toasts, toast, theater, setTheater, fs, setFs,
-    isVip, vipModalOpen, activateVip]);
+    isVip, vipModalOpen, activateVip, saveProgress, getProgress]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

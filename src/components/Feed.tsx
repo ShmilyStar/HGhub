@@ -33,7 +33,7 @@ const stripHtml = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, "
 
 export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind = "video", active, bottomInset, onBack, onNearEnd }: Props) {
   const store = useStore();
-  const { isLiked, isFav, toggleLikeLocal, toggleFavLocal, toggleFollowLocal, muted, setMuted, volume, setVolume, toast, addHistory, user, setLoginOpen, isVip, setVipModalOpen } = store;
+  const { isLiked, isFav, toggleLikeLocal, toggleFavLocal, toggleFollowLocal, muted, setMuted, volume, setVolume, toast, addHistory, user, setLoginOpen, isVip, setVipModalOpen, progress, saveProgress } = store;
   const isDesktop = platform !== "android";
 
   const boxRef = useRef<HTMLDivElement>(null);
@@ -44,6 +44,9 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
   const [playUrls, setPlayUrls] = useState<Record<string, string>>({});
   const [cards, setCards] = useState<Record<number, VideoCard>>({});
   const [posts, setPosts] = useState<Record<number, Post>>({});
+  const resumedKeysRef = useRef<Set<string>>(new Set());
+  const notifiedVidsRef = useRef<Set<number>>(new Set());
+  const preloadedKeysRef = useRef<Set<string>>(new Set());
 
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -99,7 +102,7 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
 
   const curId = videoIds[index];
   const detail = details[curId];
-  const curEp = epMap[curId] || 1;
+  const curEp = epMap[curId] || progress[curId]?.ep || 1;
   const playKey = `${curId}:${curEp}`;
   const playUrl = playUrls[playKey] || "";
   const episodes = detail?.episodes || [];
@@ -214,6 +217,60 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [curId, curEp]);
 
+  /* 下一集无缝预加载：当前集开播后，静默预取下一集播放地址并预热底层 m3u8 缓存 */
+  useEffect(() => {
+    if (!curId || !playUrl || kind !== "video") return undefined;
+    const nextEp = curEp + 1;
+    if (episodes.length > 0 && !episodes.some((e) => e.ep_num === nextEp)) return undefined;
+    const nextKey = `${curId}:${nextEp}`;
+    if (playUrls[nextKey] || preloadedKeysRef.current.has(nextKey)) return undefined;
+
+    const timer = window.setTimeout(() => {
+      preloadedKeysRef.current.add(nextKey);
+      api.play(curId, nextEp)
+        .then((info) => {
+          if (!info?.video_url) return;
+          setPlayUrls((m) => ({ ...m, [nextKey]: info.video_url }));
+          const proxied = mediaUrl(info.video_url);
+          if (proxied.includes("/hls?u=")) {
+            fetch(proxied).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [curId, curEp, playUrl, kind, episodes, playUrls]);
+
+  /* 防手机自动息屏（Screen Wake Lock API） */
+  useEffect(() => {
+    const keepAwake = active && !paused && !vipLocked && hasVideo;
+    if (!keepAwake) return undefined;
+    let sentinel: { release?: () => Promise<void> } | null = null;
+    let disposed = false;
+
+    const requestLock = async () => {
+      try {
+        const wl = (navigator as unknown as { wakeLock?: { request: (t: "screen") => Promise<{ release?: () => Promise<void> }> } }).wakeLock;
+        if (wl && !disposed && document.visibilityState === "visible") {
+          sentinel = await wl.request("screen");
+        }
+      } catch {
+        /* 部分浏览器或省电模式忽略 */
+      }
+    };
+
+    requestLock();
+    const onVis = () => {
+      if (document.visibilityState === "visible" && !disposed) requestLock();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVis);
+      sentinel?.release?.().catch(() => {});
+    };
+  }, [active, paused, vipLocked, hasVideo]);
+
   /* 切换条目/集数时重置播放状态 */
   useEffect(() => {
     setTime(0); setDuration(0); setBuffered(0); setErr(""); setWaiting(true); setPaused(false); setDescOpen(false);
@@ -247,6 +304,31 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
     }
   }, [setVipModalOpen]);
 
+  const handleDuration = useCallback((d: number) => {
+    setDuration(d);
+    if (!curId || resumedKeysRef.current.has(playKey)) return;
+    resumedKeysRef.current.add(playKey);
+
+    const saved = progress[curId];
+    if (!saved || saved.ep !== curEp) return;
+
+    let target = saved.time;
+    if (d > 0 && target >= d - 3) target = 0;
+    if (!isVip && target >= PREVIEW_LIMIT - 1) target = Math.max(0, PREVIEW_LIMIT - 3);
+
+    if (target > 2) {
+      videoRef.current?.seek(target);
+      setTime(target);
+    }
+    if (active && !notifiedVidsRef.current.has(curId) && (saved.ep > 1 || target > 5)) {
+      notifiedVidsRef.current.add(curId);
+      toast(
+        target > 5 ? `已为你续播至 第 ${curEp} 集 ${fmtTime(target)}` : `已为你续播至 第 ${curEp} 集`,
+        "info",
+      );
+    }
+  }, [curId, playKey, progress, curEp, isVip, active, toast]);
+
   const handleTime = useCallback((t: number) => {
     if (!isVip && t >= PREVIEW_LIMIT) {
       triggerVipGate();
@@ -257,7 +339,10 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
       setVipLocked(false);
     }
     setTime(t);
-  }, [isVip, triggerVipGate]);
+    if (curId && kind === "video") {
+      saveProgress(curId, curEp, t, episodes.length || undefined);
+    }
+  }, [isVip, triggerVipGate, curId, kind, saveProgress, curEp, episodes.length]);
 
   const seekSafe = useCallback((target: number) => {
     if (!isVip && target >= PREVIEW_LIMIT) {
@@ -269,8 +354,11 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
     setVipLocked(false);
     videoRef.current?.seek(target);
     setTime(target);
+    if (curId && kind === "video") {
+      saveProgress(curId, curEp, target, episodes.length || undefined, true);
+    }
     return true;
-  }, [isVip, triggerVipGate, setVipModalOpen]);
+  }, [isVip, triggerVipGate, setVipModalOpen, curId, kind, saveProgress, curEp, episodes.length]);
 
   const togglePlaySafe = useCallback(() => {
     if (!isVip && (vipLockedRef.current || time >= PREVIEW_LIMIT - 0.15)) {
@@ -513,6 +601,10 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
 
   const pickEp = (ep: number) => {
     setEpMap((m) => ({ ...m, [curId]: ep }));
+    if (curId && kind === "video") {
+      resumedKeysRef.current.add(`${curId}:${ep}`);
+      saveProgress(curId, ep, 0, episodes.length || undefined, true);
+    }
     setPanel(null);
   };
 
@@ -549,12 +641,18 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
                   fit={isDesktop || (vsize.w > 0 && vsize.w > vsize.h) ? "contain" : "cover"}
                   onClick={() => { if (isDesktop) togglePlaySafe(); }}
                   onTime={handleTime}
-                  onDuration={setDuration}
+                  onDuration={handleDuration}
                   onSize={(w, h) => setVsize({ w, h })}
                   onPlaying={() => { setPaused(false); setWaiting(false); }}
                   onPause={() => setPaused(true)}
                   onWaiting={() => setWaiting(true)}
-                  onEnded={() => { const next = episodes.find((e) => e.ep_num === curEp + 1); if (next) pickEp(next.ep_num); }}
+                  onEnded={() => {
+                    const next = episodes.find((e) => e.ep_num === curEp + 1);
+                    if (next) {
+                      pickEp(next.ep_num);
+                      toast(`自动连播 · 第 ${next.ep_num} 集`, "info");
+                    }
+                  }}
                   onError={(m) => setErr(m)} />
                 </div>
               ) : (

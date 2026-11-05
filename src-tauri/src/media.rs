@@ -175,7 +175,9 @@ pub async fn load_playlist(url: &str, prefix: &str) -> Result<Arc<String>, Strin
             }
         } else {
             let absolute = absolutize(url, line);
-            out.push_str(&format!("{prefix}/seg?u={}", enc(&absolute)));
+            let clean_path = absolute.split('?').next().unwrap_or(&absolute);
+            let route = if clean_path.ends_with(".m3u8") { "hls" } else { "seg" };
+            out.push_str(&format!("{prefix}/{route}?u={}", enc(&absolute)));
         }
         out.push('\n');
     }

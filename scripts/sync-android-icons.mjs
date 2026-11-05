@@ -12,7 +12,7 @@
  *   node scripts/sync-android-icons.mjs
  *   （tauri.conf.json 的 beforeBuildCommand 已自动调用，一般不用手动跑）
  */
-import { cpSync, existsSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,3 +31,12 @@ if (!existsSync(dest)) {
 
 cpSync(src, dest, { recursive: true, force: true });
 console.log(`[icons] 安卓图标已同步 → ${dest}`);
+
+const stringsXml = join(dest, "values", "strings.xml");
+if (existsSync(stringsXml)) {
+  let xml = readFileSync(stringsXml, "utf8");
+  xml = xml.replace(/<string name="app_name">.*?<\/string>/g, '<string name="app_name">黄果</string>');
+  xml = xml.replace(/<string name="main_activity_title">.*?<\/string>/g, '<string name="main_activity_title">黄果</string>');
+  writeFileSync(stringsXml, xml, "utf8");
+  console.log("[icons] 安卓桌面应用名已设置为：黄果");
+}

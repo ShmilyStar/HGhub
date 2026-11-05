@@ -98,10 +98,24 @@ export const CAT_ICONS: Record<string, ReturnType<typeof S>> = {
 export function Logo({ size = 28, className = "" }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" className={className} aria-hidden>
-      <rect x="2" y="2" width="44" height="44" rx="12" fill="var(--p-primary)" />
-      <path d="M14 13v22M14 24h10M24 13v22" stroke="var(--p-on-primary)" strokeWidth="4.4" strokeLinecap="round" fill="none" />
-      <path d="M31 17.5c3.2 0 5.5 2.6 5.5 6.5S34.2 30.5 31 30.5" stroke="var(--p-on-primary)" strokeWidth="4" strokeLinecap="round" fill="none" />
-      <path d="m33.5 9.5 5.5 3.2-5.5 3.2Z" fill="var(--p-on-primary)" />
+      <defs>
+        <linearGradient id="hg-bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#1b1512" />
+          <stop offset="100%" stopColor="#0c0d14" />
+        </linearGradient>
+        <linearGradient id="hg-fruit" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#ffe28a" />
+          <stop offset="48%" stopColor="#ffa826" />
+          <stop offset="100%" stopColor="#ff4e32" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#hg-bg)" stroke="rgba(255,204,102,0.32)" strokeWidth="1.5" />
+      {/* 顶部果叶 */}
+      <path d="M24 9.5c2.5-3.2 6.8-3.8 9.2-2.2-1.2 3.2-4.6 4.6-9.2 2.2Z" fill="#ffd66b" />
+      {/* 饱满金果主体 */}
+      <circle cx="24" cy="26" r="13.5" fill="url(#hg-fruit)" />
+      {/* 内部播放三角 */}
+      <path d="M21.4 20.5c0-.8.9-1.3 1.6-.9l7.6 4.6c.7.4.7 1.4 0 1.8L23 30.6c-.7.4-1.6-.1-1.6-.9v-9.2Z" fill="#181109" />
     </svg>
   );
 }

@@ -9,7 +9,7 @@ export default function Profile({ wide: _wide }: { wide: boolean }) {
   const {
     user, setLoginOpen, logout, theme, setTheme,
     history, favs, clearHistory, clearLocal, push, toast,
-    vipExpireAt, deviceId, setVipModalOpen,
+    vipExpireAt, deviceId, setVipModalOpen, progress,
   } = useStore();
   const [tab, setTab] = useState<"fav" | "history">("fav");
   const [cards, setCards] = useState<Detail[]>([]);
@@ -138,15 +138,24 @@ export default function Profile({ wide: _wide }: { wide: boolean }) {
             <div className="flex justify-center py-8"><div className="w-7 h-7 spinner" /></div>
           ) : cards.length ? (
             <div className="grid grid-cols-3 gap-2">
-              {cards.map((c) => (
-                <button key={c.id} onClick={() => push({ kind: "feed", videoIds: cards.map((x) => x.id), index: cards.findIndex((x) => x.id === c.id), title: tab === "fav" ? "我的收藏" : "观看历史" })}
-                  className="relative rounded-(--r-sm) overflow-hidden bg-s1 elev-1 ring-1 ring-white/8 pressable" style={{ paddingTop: "135%" }}>
-                  <Img src={c.cover} />
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-2">
-                    <div className="text-[11px] font-medium text-white clamp-2 leading-tight">{c.title}</div>
-                  </div>
-                </button>
-              ))}
+              {cards.map((c) => {
+                const prog = progress[c.id];
+                const totalEp = c.episodes?.length || prog?.totalEp || 0;
+                return (
+                  <button key={c.id} onClick={() => push({ kind: "feed", videoIds: cards.map((x) => x.id), index: cards.findIndex((x) => x.id === c.id), title: tab === "fav" ? "我的收藏" : "观看历史" })}
+                    className="relative rounded-(--r-sm) overflow-hidden bg-s1 elev-1 ring-1 ring-white/8 pressable text-left" style={{ paddingTop: "135%" }}>
+                    <Img src={c.cover} />
+                    {prog && prog.ep >= 1 && (
+                      <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-amber/30 text-[9.5px] font-bold text-[#ffd27d]">
+                        看至第{prog.ep}{totalEp ? `/${totalEp}` : ""}集
+                      </span>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/92 via-black/50 to-transparent p-2">
+                      <div className="text-[11px] font-semibold text-white clamp-2 leading-tight">{c.title}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <Empty icon={tab === "fav" ? <IStar size={24} /> : <IClock size={24} />}
