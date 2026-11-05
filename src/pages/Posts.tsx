@@ -4,7 +4,7 @@ import type { Post } from "../types";
 import { useStore } from "../store";
 import { Empty, Img } from "../components/ui";
 import Player from "../components/Player";
-import { IBack, IFireF, IPlayF } from "../icons";
+import { IBack, IFireF } from "../icons";
 import { sanitizeHtml } from "../html";
 
 /* ================= 吃瓜列表 ================= */
@@ -87,10 +87,8 @@ const isHtml = (s: string) => /<(p|div|br|img|h[1-6]|ul|ol|li|blockquote|span|st
 
 /* ================= 吃瓜详情（网页式浏览） ================= */
 export function PostDetail({ id, onBack }: { id: number; onBack: () => void }) {
-  const { toast } = useStore();
   const [post, setPost] = useState<(Post & { content?: string; video_url?: string }) | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [play, setPlay] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -105,6 +103,9 @@ export function PostDetail({ id, onBack }: { id: number; onBack: () => void }) {
       <div className="shrink-0 flex items-center gap-2 px-3 border-b border-white/6 bg-s1/60 backdrop-blur-xl" style={{ paddingTop: platform === "android" ? "var(--sat, 0px)" : 0, height: platform === "android" ? "calc(44px + var(--sat, 0px))" : 44 }}>
         <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/6 flex items-center justify-center text-on hover:bg-s3 pressable"><IBack size={19} /></button>
         <span className="text-[14px] font-bold text-on">吃瓜详情</span>
+        {post?.video_url && (
+          <span className="ml-auto text-[10.5px] text-mut">支持横滑快进 · 长按 2.0x 倍速</span>
+        )}
       </div>
 
       <div className="flex-1 scroll-y pb-8">
@@ -114,18 +115,13 @@ export function PostDetail({ id, onBack }: { id: number; onBack: () => void }) {
           <div className="flex justify-center py-12"><div className="w-8 h-8 spinner" /></div>
         ) : (
           <>
-            <div className="relative w-full bg-black" style={{ height: "min(40vh, 360px)" }}>
-              {play && post.video_url ? (
+            <div className="relative w-full bg-black" style={{ height: post.video_url ? "min(44vh, 390px)" : "min(34vh, 280px)" }}>
+              {post.video_url ? (
                 <Player src={post.video_url} poster={cover(post.cover)} autoPlay controls className="w-full h-full" />
               ) : (
-                <button onClick={() => { if (post.video_url) setPlay(true); else toast("该帖子没有视频", "info"); }} className="absolute inset-0">
+                <div className="absolute inset-0">
                   <Img src={post.cover} eager />
-                  <span className="absolute inset-0 flex items-center justify-center">
-                    <span className="w-14 h-14 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center elev-2">
-                      <IPlayF size={24} className="text-white ml-0.5" />
-                    </span>
-                  </span>
-                </button>
+                </div>
               )}
             </div>
             <div className="px-4 pt-3.5">
