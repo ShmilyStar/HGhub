@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
-import { api, APP_VERSION, cover, fmt, logLine, platform } from "../api";
-import type { Detail, User } from "../types";
-import { useStore } from "../store";
+import { api, APP_VERSION, fmt, logLine, platform } from "../api";
+import type { Detail } from "../types";
+import { formatVipExpire, useStore } from "../store";
 import { Avatar, Empty, Img, Modal, Toggle } from "../components/ui";
-import { IBroom, IChevR, IClock, IHeart, IInfo, ILink, ILogout, IMoon, IStar, ISun, IUser, IUserF } from "../icons";
+import { IBoltF, IBroom, IChevR, IClock, IHeart, IInfo, ILink, ILogout, IMoon, ISparkF, IStar, ISun, IUser } from "../icons";
 
-export default function Profile({ wide }: { wide: boolean }) {
-  const { user, setUser, loginOpen, setLoginOpen, logout, theme, setTheme, history, favs, clearHistory, clearLocal, push, toast } = useStore();
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+export default function Profile({ wide: _wide }: { wide: boolean }) {
+  const {
+    user, setLoginOpen, logout, theme, setTheme,
+    history, favs, clearHistory, clearLocal, push, toast,
+    vipExpireAt, deviceId, setVipModalOpen,
+  } = useStore();
   const [tab, setTab] = useState<"fav" | "history">("fav");
   const [cards, setCards] = useState<Detail[]>([]);
   const [about, setAbout] = useState(false);
@@ -20,6 +18,7 @@ export default function Profile({ wide }: { wide: boolean }) {
   const [clearing, setClearing] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const vipInfo = formatVipExpire(vipExpireAt);
   const ids = tab === "fav" ? favs : history;
 
   useEffect(() => {
@@ -35,114 +34,96 @@ export default function Profile({ wide }: { wide: boolean }) {
     return () => { alive = false; };
   }, [ids.join(",")]);
 
-  const submit = async () => {
-    if (!username.trim() || !password) { setErr("请输入账号与密码"); return; }
-    setBusy(true);
-    setErr("");
-    try {
-      const res = mode === "login"
-        ? await api.login(username.trim(), password)
-        : await api.register(username.trim(), password, email.trim());
-      setUser(res.user as User);
-      setPassword("");
-      setLoginOpen(false);
-      toast(mode === "login" ? `欢迎回来，${(res.user as User)?.nickname || username}` : "注册成功", "ok");
-    } catch (e) {
-      setErr((e as Error).message || "操作失败");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /* 未登录：登录卡片 */
-  if (!user) {
-    return (
-      <div className="absolute inset-0 bg-bg page-aura flex flex-col">
-        <div className="shrink-0 px-4 pb-1" style={{ paddingTop: "calc(var(--sat, 0px) + 14px)" }}>
-          <div className="text-[23px] font-extrabold tracking-tight text-on leading-none">个人中心</div>
-          <div className="text-[11px] text-mut mt-1.5">登录后多端同步点赞、收藏、观看进度与评论</div>
-        </div>
-
-        <div className="flex-1 scroll-y px-4 pt-3 pb-28">
-          <div className="rounded-(--r-lg) glass-card p-5 a-rise relative overflow-hidden">
-            <div className="absolute inset-0 pointer-events-none"
-              style={{ background: "radial-gradient(80% 100% at 100% 0%, rgba(255,82,56,.14) 0%, transparent 65%)" }} />
-            <div className="relative flex items-center gap-3.5">
-              <Avatar size={54} icon={<IUser size={24} />} hue={14} ring />
-              <div className="flex-1">
-                <div className="text-[15.5px] font-bold text-on">{mode === "login" ? "欢迎来到 HGhub" : "创建 HGhub 账号"}</div>
-                <div className="text-[11px] text-mut mt-0.5">{mode === "login" ? "账号密码登录 · 畅享高清沉浸短剧" : "立即注册 · 开启云端追剧同步"}</div>
-              </div>
-            </div>
-
-            <div className="relative flex bg-black/30 border border-white/8 rounded-(--r-ctl) p-1 mt-4">
-              {([["login", "账号登录"], ["register", "新用户注册"]] as const).map(([k, l]) => (
-                <button key={k} onClick={() => { setMode(k); setErr(""); }}
-                  className={`flex-1 h-8 rounded-(--r-ctl) text-[12px] font-bold pressable ${mode === k ? "brand-grad glow-neon" : "text-mut"}`}>{l}</button>
-              ))}
-            </div>
-
-            <div className="relative mt-3.5 flex flex-col gap-2.5">
-              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="账号（4-20 位字母/数字/下划线）"
-                className="h-10.5 px-3.5 rounded-(--r-sm) bg-black/30 border border-white/8 text-[13px] text-on placeholder-dim outline-none focus:border-primary/60 transition-colors" />
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="密码（6-20 位）"
-                onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-                className="h-10.5 px-3.5 rounded-(--r-sm) bg-black/30 border border-white/8 text-[13px] text-on placeholder-dim outline-none focus:border-primary/60 transition-colors" />
-              {mode === "register" && (
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱（可选）"
-                  className="h-10.5 px-3.5 rounded-(--r-sm) bg-black/30 border border-white/8 text-[13px] text-on placeholder-dim outline-none focus:border-primary/60 transition-colors" />
-              )}
-              {err && <div className="text-[11.5px] text-danger">{err}</div>}
-              <button onClick={submit} disabled={busy}
-                className="h-10.5 mt-0.5 rounded-(--r-ctl) brand-grad glow-neon text-[13.5px] font-bold pressable disabled:opacity-60">
-                {busy ? "处理中…" : mode === "login" ? "立即登录" : "注册并登录"}
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-(--r-md) glass-card p-4">
-            <div className="flex items-center gap-2 text-[13px] font-bold text-on"><IUserF size={15} className="text-primary" />专属追剧权益</div>
-            <ul className="mt-2.5 space-y-1.5 text-[11.5px] text-mut leading-relaxed">
-              <li>· 喜欢与收藏剧单跨端实时云同步</li>
-              <li>· 自动记忆每一部短剧的集数与播放进度</li>
-              <li>· 解锁剧评互动与热门弹幕评论区</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* 已登录 */
   return (
     <div className="absolute inset-0 bg-bg page-aura flex flex-col">
-      <div className="shrink-0 px-4 pb-2" style={{ paddingTop: "calc(var(--sat, 0px) + 14px)" }}>
-        <div className="text-[23px] font-extrabold tracking-tight text-on leading-none">个人中心</div>
+      <div className="shrink-0 px-4 pb-2 flex items-center justify-between" style={{ paddingTop: "calc(var(--sat, 0px) + 14px)" }}>
+        <div>
+          <div className="text-[23px] font-extrabold tracking-tight text-on leading-none">我的会员</div>
+          <div className="text-[11px] text-mut mt-1">本机免注册畅看 · 会员权益与追剧足迹</div>
+        </div>
+        <button
+          onClick={() => setVipModalOpen(true)}
+          className="h-8 px-3 rounded-full gold-grad text-[11.5px] font-extrabold flex items-center gap-1 pressable">
+          <ISparkF size={12} />
+          {vipInfo.isVip ? "续期卡密" : "卡密激活"}
+        </button>
       </div>
 
       <div className="flex-1 scroll-y px-4 pt-2 pb-28">
-        {/* 资料卡 */}
-        <div className="rounded-(--r-lg) glass-card p-4 flex items-center gap-3.5 a-rise relative overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none"
-            style={{ background: "radial-gradient(85% 120% at 100% 0%, rgba(255,82,56,.16) 0%, transparent 65%)" }} />
-          <Avatar size={56} name={user.nickname} hue={16} ring />
-          <div className="relative flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[16px] font-extrabold text-on truncate">{user.nickname}</span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold gold-grad">尊享会员</span>
-            </div>
-            <div className="text-[11px] text-mut mt-0.5">@{user.username} · UID {user.id}</div>
-            <div className="flex gap-4 mt-2 text-[11px] text-mut">
-              <span>获赞 <b className="text-on font-bold">{fmt(user.counts?.like)}</b></span>
-              <span>收藏 <b className="text-on font-bold">{fmt(user.counts?.collect)}</b></span>
-              <span>关注 <b className="text-on font-bold">{fmt(user.counts?.following)}</b></span>
+        {/* 顶部黑金 VIP 会员中心大卡片（免登录常驻） */}
+        <div
+          className="rounded-(--r-lg) p-4.5 a-rise relative overflow-hidden border"
+          style={{
+            background: vipInfo.isVip
+              ? "linear-gradient(135deg, rgba(255, 204, 92, 0.20) 0%, rgba(28, 22, 16, 0.94) 55%, rgba(14, 15, 22, 0.98) 100%)"
+              : "linear-gradient(135deg, rgba(255, 82, 56, 0.14) 0%, rgba(18, 20, 28, 0.94) 60%, rgba(13, 15, 21, 0.98) 100%)",
+            borderColor: vipInfo.isVip ? "rgba(255, 202, 98, 0.38)" : "rgba(255, 255, 255, 0.10)",
+            boxShadow: vipInfo.isVip
+              ? "0 16px 40px -12px rgba(245, 166, 35, 0.28), inset 0 1px 0 rgba(255, 232, 178, 0.22)"
+              : "0 14px 34px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+          }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className={`w-12 h-12 rounded-2xl flex items-center justify-center ${vipInfo.isVip ? "gold-grad" : "bg-white/10 text-amber border border-white/12"}`}>
+                <ISparkF size={22} />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[16.5px] font-extrabold text-white tracking-tight">
+                    {vipInfo.statusText}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold ${vipInfo.isVip ? "gold-grad" : "bg-white/12 text-white/75"}`}>
+                    {vipInfo.isVip ? "已解锁全集" : "试看 15秒"}
+                  </span>
+                </div>
+                <div className="text-[11.5px] text-white/65 mt-0.5">
+                  {vipInfo.remainText} · 本机设备码 <span className="font-mono text-white/85">{deviceId}</span>
+                </div>
+              </div>
             </div>
           </div>
-          <button onClick={async () => { await logout(); }}
-            className="relative w-9 h-9 rounded-full bg-white/8 border border-white/8 flex items-center justify-center text-mut pressable" aria-label="退出登录">
-            <ILogout size={17} />
-          </button>
+
+          {/* 到期时间醒目展示栏 */}
+          <div className="mt-3.5 px-3.5 py-2.5 rounded-(--r-sm) bg-black/35 border border-white/8 flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[12px] text-white/70">
+              <IClock size={14} className="text-amber" />
+              会员到期时间
+            </span>
+            <span className={`text-[13px] font-extrabold tabular-nums ${vipInfo.isVip ? "text-[#ffd27d]" : "text-white/75"}`}>
+              {vipInfo.expireDateText}
+            </span>
+          </div>
+
+          <div className="mt-3.5 flex items-center gap-2.5">
+            <button
+              onClick={() => setVipModalOpen(true)}
+              className="flex-1 h-10 rounded-(--r-ctl) gold-grad text-[13px] font-extrabold pressable flex items-center justify-center gap-1.5 shadow-[0_6px_20px_-4px_rgba(245,166,35,0.45)]">
+              <IBoltF size={14} />
+              {vipInfo.isVip ? "输入卡密续期 / 叠加时长" : "输入数字卡密 · 立即开通 VIP"}
+            </button>
+          </div>
         </div>
+
+        {/* 已登录账号资料卡（可选，仅登录时展示） */}
+        {user && (
+          <div className="mt-3.5 rounded-(--r-lg) glass-card p-3.5 flex items-center gap-3 relative overflow-hidden">
+            <Avatar size={46} name={user.nickname} hue={16} ring />
+            <div className="relative flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[14.5px] font-bold text-on truncate">{user.nickname}</span>
+                <span className="text-[11px] text-mut">@{user.username}</span>
+              </div>
+              <div className="flex gap-4 mt-1 text-[11px] text-mut">
+                <span>获赞 <b className="text-on font-bold">{fmt(user.counts?.like)}</b></span>
+                <span>收藏 <b className="text-on font-bold">{fmt(user.counts?.collect)}</b></span>
+              </div>
+            </div>
+            <button onClick={async () => { await logout(); }}
+              className="relative w-8.5 h-8.5 rounded-full bg-white/8 border border-white/8 flex items-center justify-center text-mut pressable" aria-label="退出登录">
+              <ILogout size={16} />
+            </button>
+          </div>
+        )}
 
         {/* 我的内容 */}
         <div className="flex bg-black/30 border border-white/8 rounded-(--r-ctl) p-1 mt-4">
@@ -195,6 +176,16 @@ export default function Profile({ wide }: { wide: boolean }) {
               <div className="text-[10.5px] text-mut">{favs.length} 部收藏 · {history.length} 条观看记录</div>
             </div>
           </div>
+          {!user && (
+            <button onClick={() => setLoginOpen(true)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left pressable">
+              <span className="w-8.5 h-8.5 rounded-full tonal flex items-center justify-center"><IUser size={16} /></span>
+              <div className="flex-1">
+                <div className="text-[13px] font-medium text-on">账号云同步（可选）</div>
+                <div className="text-[10.5px] text-mut">默认免登录使用 · 登录可跨设备同步收藏</div>
+              </div>
+              <IChevR size={15} className="text-mut" />
+            </button>
+          )}
         </div>
 
         {/* 关于 / 缓存 */}

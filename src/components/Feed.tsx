@@ -10,8 +10,10 @@ import { sanitizeHtml } from "../html";
 import { setBackHandler } from "../back";
 import {
   IBack, IBoltF, IChevronDown, IChevronUp, IClose, ICommentF, ICompress, IExpand, IFileText, IHeart, IHeartF,
-  ILink, IList, ILockF, IPauseF, IPlayF, IPlus, IStar, IStarF, IVol, IVolMute,
+  ILink, IList, ILockF, IPauseF, IPlayF, IPlus, IReplay, ISparkF, IStar, IStarF, IVol, IVolMute,
 } from "../icons";
+
+const PREVIEW_LIMIT = 15;
 
 type Props = {
   videoIds: number[];
@@ -31,7 +33,7 @@ const stripHtml = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, "
 
 export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind = "video", active, bottomInset, onBack, onNearEnd }: Props) {
   const store = useStore();
-  const { isLiked, isFav, toggleLikeLocal, toggleFavLocal, toggleFollowLocal, muted, setMuted, volume, setVolume, toast, addHistory, user, setLoginOpen } = store;
+  const { isLiked, isFav, toggleLikeLocal, toggleFavLocal, toggleFollowLocal, muted, setMuted, volume, setVolume, toast, addHistory, user, setLoginOpen, isVip, setVipModalOpen } = store;
   const isDesktop = platform !== "android";
 
   const boxRef = useRef<HTMLDivElement>(null);
@@ -51,6 +53,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
   const [rate, setRate] = useState(1);
   const [waiting, setWaiting] = useState(false);
   const [err, setErr] = useState("");
+  const [vipLocked, setVipLocked] = useState(false);
+  const vipLockedRef = useRef(false);
   const [panel, setPanel] = useState<"episodes" | "comments" | "article" | null>(null);
   const [descOpen, setDescOpen] = useState(false);
   const theater = store.theater;
@@ -214,7 +218,68 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
   useEffect(() => {
     setTime(0); setDuration(0); setBuffered(0); setErr(""); setWaiting(true); setPaused(false); setDescOpen(false);
     setVsize({ w: 0, h: 0 });
+    vipLockedRef.current = false;
+    setVipLocked(false);
   }, [playKey]);
+
+  /* 激活 VIP 后：如果当前正停在 15s 拦截处，立刻解锁并无缝继续播放 */
+  useEffect(() => {
+    if (isVip && vipLockedRef.current) {
+      vipLockedRef.current = false;
+      setVipLocked(false);
+      if (active) videoRef.current?.play();
+    } else if (!isVip && time >= PREVIEW_LIMIT && hasVideo) {
+      videoRef.current?.pause();
+      vipLockedRef.current = true;
+      setVipLocked(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVip]);
+
+  const triggerVipGate = useCallback(() => {
+    videoRef.current?.pause();
+    videoRef.current?.seek(PREVIEW_LIMIT);
+    setTime(PREVIEW_LIMIT);
+    if (!vipLockedRef.current) {
+      vipLockedRef.current = true;
+      setVipLocked(true);
+      setVipModalOpen(true);
+    }
+  }, [setVipModalOpen]);
+
+  const handleTime = useCallback((t: number) => {
+    if (!isVip && t >= PREVIEW_LIMIT) {
+      triggerVipGate();
+      return;
+    }
+    if (vipLockedRef.current && t < PREVIEW_LIMIT - 0.3) {
+      vipLockedRef.current = false;
+      setVipLocked(false);
+    }
+    setTime(t);
+  }, [isVip, triggerVipGate]);
+
+  const seekSafe = useCallback((target: number) => {
+    if (!isVip && target >= PREVIEW_LIMIT) {
+      triggerVipGate();
+      setVipModalOpen(true);
+      return false;
+    }
+    vipLockedRef.current = false;
+    setVipLocked(false);
+    videoRef.current?.seek(target);
+    setTime(target);
+    return true;
+  }, [isVip, triggerVipGate, setVipModalOpen]);
+
+  const togglePlaySafe = useCallback(() => {
+    if (!isVip && (vipLockedRef.current || time >= PREVIEW_LIMIT - 0.15)) {
+      triggerVipGate();
+      setVipModalOpen(true);
+      return;
+    }
+    videoRef.current?.toggle();
+  }, [isVip, time, triggerVipGate, setVipModalOpen]);
 
   /* 音量/静音同步 */
   useEffect(() => { videoRef.current?.mute(muted); }, [muted]);
@@ -235,9 +300,9 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
       switch (e.key) {
         case "ArrowDown": e.preventDefault(); go(1); break;
         case "ArrowUp": e.preventDefault(); go(-1); break;
-        case " ": e.preventDefault(); videoRef.current?.toggle(); break;
-        case "ArrowLeft": e.preventDefault(); videoRef.current?.seek(Math.max(0, time - 5)); break;
-        case "ArrowRight": e.preventDefault(); videoRef.current?.seek(time + 5); break;
+        case " ": e.preventDefault(); togglePlaySafe(); break;
+        case "ArrowLeft": e.preventDefault(); seekSafe(Math.max(0, time - 5)); break;
+        case "ArrowRight": e.preventDefault(); seekSafe(time + 5); break;
         case "f": case "F": toggleFull(); break;
         case "t": case "T": setTheater((v) => !v); break;
         case "m": case "M": setMuted((v) => !v); break;
@@ -251,7 +316,7 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, panel, time, index]);
+  }, [active, panel, time, index, togglePlaySafe, seekSafe]);
 
   /* 安卓返回键：面板打开时先关面板 */
   useEffect(() => {
@@ -351,13 +416,15 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
     }
     if (g.mode === "scrub") {
       const target = scrubTarget.current;
-      if (target != null) videoRef.current?.seek(target);
       setScrub(null);
       scrubTarget.current = null;
-      if (!paused) videoRef.current?.play();
+      if (target != null) {
+        const ok = seekSafe(target);
+        if (ok && !paused) videoRef.current?.play();
+      }
       return;
     }
-    if (Date.now() - g.t < 260) videoRef.current?.toggle();
+    if (Date.now() - g.t < 260) togglePlaySafe();
   };
 
   /* 长按倍速期间禁止原生滚动，否则上滑会被列表吃掉、锁不住倍速 */
@@ -404,8 +471,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
     const pct = barPctAt(e.clientX, e.clientY);
     if (pct != null && duration) {
       const target = pct * duration;
-      videoRef.current?.seek(target);
-      setTime(target);
+      const ok = seekSafe(target);
+      if (ok && !paused) videoRef.current?.play();
     }
     setBarPct(null);
   };
@@ -480,8 +547,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
                 <VideoSurface ref={videoRef} src={playUrl} poster={posterUrl} autoPlay muted={muted}
                   volume={volume} rate={effRate}
                   fit={isDesktop || (vsize.w > 0 && vsize.w > vsize.h) ? "contain" : "cover"}
-                  onClick={() => { if (isDesktop) videoRef.current?.toggle(); }}
-                  onTime={setTime}
+                  onClick={() => { if (isDesktop) togglePlaySafe(); }}
+                  onTime={handleTime}
                   onDuration={setDuration}
                   onSize={(w, h) => setVsize({ w, h })}
                   onPlaying={() => { setPaused(false); setWaiting(false); }}
@@ -598,6 +665,29 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
               {!fs && (
               <div className={isDesktop ? "desktop-video-meta" : "absolute left-3.5 right-[76px] z-20"}
                 style={isDesktop ? undefined : { bottom: `calc(var(--sab, 0px) + ${bottomInset + 22}px)` }}>
+                {/* VIP 试看状态胶囊 / 会员标识 */}
+                {hasVideo && (
+                  <div className="mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setVipModalOpen(true)}
+                      className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[11px] font-bold pressable backdrop-blur-md transition-all ${
+                        isVip
+                          ? "bg-black/55 border border-amber/35 text-[#ffd27d]"
+                          : "bg-black/65 border border-amber/45 text-[#ffd88a] shadow-[0_4px_16px_rgba(245,166,35,0.22)]"
+                      }`}>
+                      <ISparkF size={12} className="text-amber" />
+                      {isVip ? (
+                        <span>尊享 VIP · 已解锁全集</span>
+                      ) : vipLocked ? (
+                        <span>试看已满 15 秒 · 点此输入卡密解锁</span>
+                      ) : (
+                        <span>免费试看 {Math.max(0, Math.ceil(PREVIEW_LIMIT - time))}s · 开通 VIP 看全集</span>
+                      )}
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <span className="text-[15px] font-bold text-white tsh truncate">@{meta.author}</span>
                   {episodes.length > 0 && (
@@ -634,15 +724,56 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
                 </div>
               )}
 
+              {/* 15 秒免费试看结束拦截层 */}
+              {isActive && !isVip && vipLocked && !err && (
+                <div className="absolute inset-0 z-30 bg-black/75 backdrop-blur-md flex items-center justify-center px-6">
+                  <div className="w-full max-w-[330px] rounded-(--r-lg) glass-card p-5 text-center border border-amber/30 a-pop relative overflow-hidden">
+                    <div
+                      className="absolute inset-x-0 top-0 h-24 pointer-events-none"
+                      style={{
+                        background: "radial-gradient(80% 100% at 50% 0%, rgba(255, 196, 82, 0.25) 0%, transparent 100%)",
+                      }}
+                    />
+                    <div className="relative mx-auto w-12 h-12 rounded-2xl gold-grad flex items-center justify-center shadow-[0_8px_24px_-4px_rgba(245,166,35,0.55)]">
+                      <ILockF size={22} />
+                    </div>
+                    <div className="relative mt-3 text-[16.5px] font-extrabold text-white">15 秒免费试看已结束</div>
+                    <p className="relative mt-1 text-[12px] text-white/65 leading-relaxed">
+                      开通 VIP 会员即可解锁本剧完整时长与全部剧集，输入数字卡密立即继续观看
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setVipModalOpen(true)}
+                      className="relative mt-4 w-full h-10.5 rounded-(--r-ctl) gold-grad text-[13.5px] font-extrabold pressable flex items-center justify-center gap-1.5 shadow-[0_6px_20px_-4px_rgba(245,166,35,0.5)]">
+                      <ISparkF size={14} />
+                      输入卡密 · 立即解锁全集
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        vipLockedRef.current = false;
+                        setVipLocked(false);
+                        setTime(0);
+                        videoRef.current?.seek(0);
+                        videoRef.current?.play();
+                      }}
+                      className="relative mt-2.5 w-full h-9 rounded-(--r-ctl) bg-white/8 border border-white/10 text-[12px] font-semibold text-white/80 pressable flex items-center justify-center gap-1.5">
+                      <IReplay size={13} />
+                      重新试看前 15 秒
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* 暂停 / 缓冲 */}
-              {isActive && paused && !err && (
+              {isActive && paused && !vipLocked && !err && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
                   <span className="w-[66px] h-[66px] rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center">
                     <IPlayF size={28} className="text-white/90 ml-0.5" />
                   </span>
                 </div>
               )}
-              {isActive && waiting && !err && !paused && (
+              {isActive && waiting && !err && !paused && !vipLocked && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none"><div className="w-9 h-9 spinner" /></div>
               )}
               {isActive && err && (
@@ -667,8 +798,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
           visible={active && !idle}
           nextDisabled={!episodes.some((e) => e.ep_num === curEp + 1) && index >= videoIds.length - 1}
           nextTitle={episodes.some((e) => e.ep_num === curEp + 1) ? "下一集 E" : "下一部 ↓"}
-          onToggle={() => videoRef.current?.toggle()}
-          onSeek={(t) => { videoRef.current?.seek(t); setTime(t); }}
+          onToggle={togglePlaySafe}
+          onSeek={(t) => { const ok = seekSafe(t); if (ok && !paused) videoRef.current?.play(); }}
           onRate={(r) => { setRate(r); videoRef.current?.rate(r); }}
           onMute={() => setMuted((m) => !m)}
           onVolume={(v) => setVolume(v)}

@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import Feed from "./components/Feed";
 import { PostsPage, PostDetail } from "./pages/Posts";
 import LoginModal from "./components/LoginModal";
+import VipModal from "./components/VipModal";
 import { ToastHost } from "./components/ui";
 import { DesktopRail, DesktopTitleBar } from "./components/DesktopChrome";
 import ResizeHandles from "./components/ResizeHandles";
@@ -227,16 +228,17 @@ function MobileShell() {
 
 /* ============ 入口 ============ */
 export default function App() {
-  const { platform, loginOpen, setLoginOpen, tab, setTab, stack, pop, fs, setFs } = useStore();
+  const { platform, loginOpen, setLoginOpen, vipModalOpen, setVipModalOpen, tab, setTab, stack, pop, fs, setFs } = useStore();
 
   /* —— 安卓硬件返回键 ——
-     层级：全屏 → 面板/弹层 → 登录框 → 页面栈 → 回首页 → 退出应用。
+     层级：全屏 → 面板/弹层 → VIP框/登录框 → 页面栈 → 回首页 → 退出应用。
      不注册这个监听，Tauri 会直接 webView.goBack() 或退出，表现就是「任意页面返回都回桌面」。 */
   const backRef = useRef<() => void>(() => {});
   backRef.current = () => {
     if (fs) { setFs(false); return; }                        // 沉浸全屏
     if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
     if (runBack()) return;                                  // 播放器的选集/评论/图文面板
+    if (vipModalOpen) { setVipModalOpen(false); return; }
     if (loginOpen) { setLoginOpen(false); return; }
     if (stack.length) { pop(); return; }
     if (tab !== "home") { setTab("home"); return; }
@@ -273,6 +275,7 @@ export default function App() {
   return (
     <>
       {platform === "android" ? <MobileShell /> : <DesktopShell />}
+      <VipModal />
       <LoginModal />
       <ToastHost />
       {/* 登录遮罩键盘处理占位 */}
