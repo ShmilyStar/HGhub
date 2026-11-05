@@ -60,23 +60,23 @@ export default function Search({ active, wide }: { active: boolean; wide: boolea
   const querying = submitted.length > 0;
 
   return (
-    <div className="absolute inset-0 bg-bg flex flex-col">
+    <div className="absolute inset-0 bg-bg page-aura flex flex-col">
       {/* 搜索栏 */}
       <div className="shrink-0 px-4 pb-3 flex items-center gap-2.5" style={{ paddingTop: "calc(var(--sat, 0px) + 12px)" }}>
-        <form className="flex-1 flex items-center gap-2 h-11 rounded-(--r-ctl) bg-s3 px-3.5 focus-within:bg-s4 transition-colors"
+        <form className="flex-1 flex items-center gap-2.5 h-11 rounded-(--r-ctl) glass-card px-4 focus-within:border-primary/50 transition-colors"
           onSubmit={(e) => { e.preventDefault(); submit(q); }}>
-          <ISearch size={17} className="text-mut shrink-0" />
-          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索短剧、作者、题材…"
+          <ISearch size={17} className="text-primary shrink-0" />
+          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索短剧、作者、热门题材…"
             className="flex-1 min-w-0 bg-transparent text-[13.5px] text-on placeholder-dim outline-none" />
-          {q && <button type="button" onClick={() => { setQ(""); setSubmitted(""); setItems([]); }} className="w-5 h-5 rounded-full bg-s4 flex items-center justify-center text-mut pressable"><IClose size={11} /></button>}
+          {q && <button type="button" onClick={() => { setQ(""); setSubmitted(""); setItems([]); }} className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-mut pressable"><IClose size={11} /></button>}
         </form>
         <button onClick={() => push({ kind: "ranks" })} aria-label="排行榜"
-          className="w-11 h-11 rounded-(--r-sm) flex items-center justify-center bg-primary text-on-primary pressable elev-2">
+          className="w-11 h-11 rounded-full flex items-center justify-center gold-grad pressable elev-2">
           <ITrophy size={19} />
         </button>
       </div>
 
-      <div className="flex-1 scroll-y px-4 pb-24">
+      <div className="flex-1 scroll-y px-4 pb-28">
         {!querying ? (
           <>
             {searchHist.length > 0 && (
@@ -87,44 +87,50 @@ export default function Search({ active, wide }: { active: boolean; wide: boolea
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2.5">
                   {searchHist.map((h) => (
-                    <button key={h} onClick={() => { setQ(h); submit(h); }} className="px-3.5 h-8 rounded-(--r-ctl) bg-s3 text-[12px] text-on/80 pressable">{h}</button>
+                    <button key={h} onClick={() => { setQ(h); submit(h); }} className="px-3.5 h-8 rounded-(--r-ctl) bg-white/6 border border-white/8 text-[12px] text-on/85 pressable">{h}</button>
                   ))}
                 </div>
               </div>
             )}
 
-            <div className="mt-5 rounded-(--r-md) bg-s2 p-3.5 a-rise">
+            <div className="mt-4 rounded-(--r-md) glass-card p-4 a-rise">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-on/90"><IFireF size={15} className="text-primary" />热门题材</span>
-                <button onClick={() => push({ kind: "ranks" })} className="text-[11px] text-primary font-semibold pressable">完整榜单 ›</button>
+                <span className="flex items-center gap-1.5 text-[13.5px] font-bold text-on"><IFireF size={16} className="text-primary" />全网热门题材</span>
+                <button onClick={() => push({ kind: "ranks" })} className="text-[11.5px] text-primary font-semibold pressable">热播总榜 ›</button>
               </div>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {HOT_TAGS.map((t) => (
+              <div className="flex flex-wrap gap-2 mt-3.5">
+                {HOT_TAGS.map((t, idx) => (
                   <button key={t} onClick={() => { setQ(t); submit(t); }}
-                    className="px-3 h-7 rounded-(--r-ctl) bg-s3 text-[12px] text-on/85 pressable">{t}</button>
+                    className={`px-3.5 h-8 rounded-(--r-ctl) text-[12px] font-medium pressable ${
+                      idx < 3
+                        ? "bg-gradient-to-r from-[#ff5e3a]/18 to-[#ff2a55]/14 border border-[#ff5e3a]/30 text-[#ff8b73]"
+                        : "bg-white/6 border border-white/6 text-on/85"
+                    }`}>
+                    {idx < 3 && "🔥 "}{t}
+                  </button>
                 ))}
               </div>
             </div>
 
-            <div className="flex items-center justify-between mt-6 mb-2.5">
-              <span className="text-[13px] font-bold text-on">为你推荐</span>
+            <div className="flex items-center justify-between mt-6 mb-2">
+              <span className="text-[13px] font-bold text-on">猜你想看</span>
               <button onClick={() => submit(HOT_TAGS[Math.floor(Math.random() * HOT_TAGS.length)])}
-                className="flex items-center gap-1 text-[11.5px] text-mut pressable"><IRefresh size={13} />换一批</button>
+                className="flex items-center gap-1 px-2.5 h-6 rounded-full bg-white/6 text-[11px] text-mut pressable"><IRefresh size={12} />随机探索</button>
             </div>
             <p className="text-[11.5px] text-dim leading-relaxed">
-              输入关键词后按回车搜索，也可以点上面的题材直接看片单。
+              输入关键词后按回车搜索，或点击上方热门标签一键直达高分剧集。
             </p>
           </>
         ) : (
           <>
-            <div className="text-[11.5px] text-mut mt-1 mb-2.5">「{submitted}」共 <span className="text-primary font-bold">{items.length}</span> 条结果</div>
+            <div className="text-[11.5px] text-mut mt-1 mb-2.5">「{submitted}」共找到 <span className="text-primary font-bold">{items.length}</span> 部剧集</div>
             {items.length ? (
               <>
                 <Masonry videos={items} wide={wide} onOpen={(v) => push({ kind: "feed", videoIds: items.map((x) => x.id), index: items.findIndex((x) => x.id === v.id), title: `搜索 · ${submitted}` })} />
                 <div className="flex justify-center py-4">
                   {loading ? <div className="w-6 h-6 spinner" />
                     : page < pages ? (
-                      <button onClick={() => run(submitted, page + 1)} className="px-5 h-9 rounded-(--r-ctl) bg-s3 text-[12px] text-on/85 pressable">加载更多</button>
+                      <button onClick={() => run(submitted, page + 1)} className="px-5 h-9 rounded-(--r-ctl) glass-card text-[12px] text-on/85 pressable">加载更多</button>
                     ) : <span className="text-[10.5px] text-dim">— 已经到底啦 —</span>}
                 </div>
               </>
@@ -143,9 +149,9 @@ export default function Search({ active, wide }: { active: boolean; wide: boolea
 
 /* ================= 排行榜 ================= */
 const RANK_TABS = [
-  { k: "hot", label: "热播榜", desc: "按热力指数排序" },
-  { k: "recommend", label: "推荐榜", desc: "按推荐值排序" },
-  { k: "potential", label: "潜力榜", desc: "按潜力值排序" },
+  { k: "hot", label: "热播榜", desc: "按全网实时热力指数排序" },
+  { k: "recommend", label: "推荐榜", desc: "按编辑精选与高分推荐排序" },
+  { k: "potential", label: "潜力榜", desc: "按新剧黑马飙升指数排序" },
 ] as const;
 
 export function RankPage({ onBack, wide }: { onBack: () => void; wide: boolean }) {
@@ -168,24 +174,24 @@ export function RankPage({ onBack, wide }: { onBack: () => void; wide: boolean }
   const meta = RANK_TABS.find((t) => t.k === tab)!;
 
   return (
-    <div className="absolute inset-0 bg-bg flex flex-col">
-      <div className="shrink-0 relative overflow-hidden bg-s1" style={{ paddingTop: "var(--sat, 0px)" }}>
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(90% 120% at 100% 0%, var(--p-pc) 0%, transparent 60%)", opacity: 0.32 }} />
-        <div className="relative px-3 pt-2 pb-4">
-          <button onClick={onBack} className="w-10 h-10 rounded-full flex items-center justify-center text-on hover:bg-s3 pressable"><IBack size={20} /></button>
-          <div className="px-2 mt-1 flex items-end justify-between">
+    <div className="absolute inset-0 bg-bg page-aura flex flex-col">
+      <div className="shrink-0 relative overflow-hidden border-b border-white/6 bg-s1/65 backdrop-blur-xl" style={{ paddingTop: "var(--sat, 0px)" }}>
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(90% 130% at 95% 0%, rgba(247,195,85,.24) 0%, rgba(255,82,56,.14) 45%, transparent 72%)" }} />
+        <div className="relative px-3.5 pt-2 pb-4">
+          <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/6 flex items-center justify-center text-on hover:bg-s3 pressable"><IBack size={19} /></button>
+          <div className="px-1.5 mt-1.5 flex items-end justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="w-9 h-9 rounded-(--r-sm) bg-pc text-on-pc flex items-center justify-center"><ITrophy size={20} /></span>
-                <span className="text-[24px] font-bold tracking-wide text-on">HG 热榜</span>
+              <div className="flex items-center gap-2.5">
+                <span className="w-9 h-9 rounded-(--r-sm) gold-grad elev-1 flex items-center justify-center"><ITrophy size={20} /></span>
+                <span className="text-[23px] font-extrabold tracking-tight text-on">HG 权威热榜</span>
               </div>
-              <div className="text-[11px] text-mut mt-1">{meta.desc} · 每 10 分钟更新</div>
+              <div className="text-[11px] text-mut mt-1">{meta.desc} · 每 10 分钟实时更新</div>
             </div>
           </div>
-          <div className="flex bg-s3 rounded-(--r-ctl) p-1 mt-3">
+          <div className="flex bg-black/30 border border-white/8 rounded-(--r-ctl) p-1 mt-3.5">
             {RANK_TABS.map((t) => (
               <button key={t.k} onClick={() => setTab(t.k)}
-                className={`flex-1 h-8 rounded-(--r-ctl) text-[12px] font-semibold transition-all ${tab === t.k ? "tonal elev-1" : "text-mut"}`}>{t.label}</button>
+                className={`flex-1 h-8 rounded-(--r-ctl) text-[12px] font-bold transition-all ${tab === t.k ? "brand-grad glow-neon" : "text-mut"}`}>{t.label}</button>
             ))}
           </div>
         </div>

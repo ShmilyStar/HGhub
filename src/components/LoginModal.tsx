@@ -44,27 +44,27 @@ export default function LoginModal() {
           </button>
         </div>
 
-        <div className="flex bg-s2 rounded-(--r-ctl) p-1 mb-3">
+        <div className="flex bg-black/30 border border-white/8 rounded-(--r-ctl) p-1 mb-3.5">
           {([["login", "登录"], ["register", "注册"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => { setMode(k); setErr(""); }}
-              className={`flex-1 h-8 rounded-(--r-ctl) text-[12px] font-semibold pressable ${mode === k ? "bg-primary text-on-primary" : "text-mut"}`}>{l}</button>
+              className={`flex-1 h-8 rounded-(--r-ctl) text-[12px] font-bold pressable ${mode === k ? "brand-grad glow-neon" : "text-mut"}`}>{l}</button>
           ))}
         </div>
 
         <div className="flex flex-col gap-2.5">
           <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="账号"
-            className="h-10 px-3.5 rounded-(--r-sm) bg-s2 text-[13px] text-on placeholder-dim outline-none focus:bg-s4" />
+            className="h-10.5 px-3.5 rounded-(--r-sm) bg-black/30 border border-white/8 text-[13px] text-on placeholder-dim outline-none focus:border-primary/60" />
           <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="密码"
             onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-            className="h-10 px-3.5 rounded-(--r-sm) bg-s2 text-[13px] text-on placeholder-dim outline-none focus:bg-s4" />
+            className="h-10.5 px-3.5 rounded-(--r-sm) bg-black/30 border border-white/8 text-[13px] text-on placeholder-dim outline-none focus:border-primary/60" />
           {mode === "register" && (
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="邮箱（可选）"
-              className="h-10 px-3.5 rounded-(--r-sm) bg-s2 text-[13px] text-on placeholder-dim outline-none focus:bg-s4" />
+              className="h-10.5 px-3.5 rounded-(--r-sm) bg-black/30 border border-white/8 text-[13px] text-on placeholder-dim outline-none focus:border-primary/60" />
           )}
           {err && <div className="text-[11.5px] text-danger">{err}</div>}
           <button onClick={submit} disabled={busy}
-            className="h-10 rounded-(--r-ctl) bg-primary text-on-primary text-[13px] font-bold pressable disabled:opacity-60">
-            {busy ? "处理中…" : mode === "login" ? "登录" : "注册并登录"}
+            className="h-10.5 rounded-(--r-ctl) brand-grad glow-neon text-[13px] font-bold pressable disabled:opacity-60">
+            {busy ? "处理中…" : mode === "login" ? "立即登录" : "注册并登录"}
           </button>
         </div>
         <p className="text-[10.5px] text-dim mt-3 leading-relaxed">

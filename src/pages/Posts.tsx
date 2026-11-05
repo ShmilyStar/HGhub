@@ -47,25 +47,25 @@ export function PostsPage({ onBack, wide }: { onBack: () => void; wide: boolean 
   }, [page, pages]);
 
   return (
-    <div className="absolute inset-0 bg-bg flex flex-col">
-      <div className="shrink-0 flex items-center gap-2 px-2 bg-s1" style={{ paddingTop: "var(--sat, 0px)" }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center text-on hover:bg-s3 pressable"><IBack size={19} /></button>
-        <span className="text-[14px] font-bold text-on">黄果吃瓜</span>
-        <span className="text-[10.5px] text-mut ml-1">圈内爆料</span>
+    <div className="absolute inset-0 bg-bg page-aura flex flex-col">
+      <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-white/6 bg-s1/60 backdrop-blur-xl" style={{ paddingTop: "var(--sat, 0px)" }}>
+        <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/6 flex items-center justify-center text-on hover:bg-s3 pressable"><IBack size={19} /></button>
+        <span className="text-[15px] font-bold text-on">黄果吃瓜</span>
+        <span className="text-[10.5px] text-mut ml-1">圈内爆料 · 实时热帖</span>
       </div>
-      <div className="flex-1 scroll-y px-3 pt-3 pb-8">
+      <div className="flex-1 scroll-y px-3.5 pt-3 pb-8">
         {items.length ? (
           <div className={`${wide ? "columns-3 xl:columns-4" : "columns-2"} gap-2`}>
             {items.map((p) => (
               <button key={p.id} onClick={() => push({ kind: "post", id: p.id })}
-                className="w-full break-inside-avoid mb-2 relative rounded-(--r-sm) overflow-hidden bg-s1 elev-1 pressable block"
+                className="w-full break-inside-avoid mb-2 relative rounded-(--r-md) overflow-hidden bg-s1 elev-1 ring-1 ring-white/8 pressable block"
                 style={{ paddingTop: "128%" }}>
                 <Img src={p.cover} />
                 <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-2">
-                  <div className="text-[11.5px] font-medium text-white clamp-2 leading-snug tsh">{p.title}</div>
-                  <div className="flex items-center gap-1 mt-1 text-[9.5px] text-white/70">
-                    <IFireF size={10} className="text-white/70" />{fmt(p.hot)}
+                <div className="absolute inset-x-0 bottom-0 p-2.5">
+                  <div className="text-[12px] font-semibold text-white clamp-2 leading-snug tsh">{p.title}</div>
+                  <div className="flex items-center gap-1 mt-1.5 text-[10px] font-medium text-white/80">
+                    <IFireF size={10} className="text-primary" />{fmt(p.hot)}
                   </div>
                 </div>
               </button>
@@ -101,10 +101,10 @@ export function PostDetail({ id, onBack }: { id: number; onBack: () => void }) {
   }, [id]);
 
   return (
-    <div className="absolute inset-0 bg-bg flex flex-col">
-      <div className="shrink-0 flex items-center gap-2 px-2 bg-s1" style={{ paddingTop: platform === "android" ? "var(--sat, 0px)" : 0, height: platform === "android" ? "calc(44px + var(--sat, 0px))" : 44 }}>
-        <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center text-on hover:bg-s3 pressable"><IBack size={19} /></button>
-        <span className="text-[13.5px] font-semibold text-on">吃瓜详情</span>
+    <div className="absolute inset-0 bg-bg page-aura flex flex-col">
+      <div className="shrink-0 flex items-center gap-2 px-3 border-b border-white/6 bg-s1/60 backdrop-blur-xl" style={{ paddingTop: platform === "android" ? "var(--sat, 0px)" : 0, height: platform === "android" ? "calc(44px + var(--sat, 0px))" : 44 }}>
+        <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/6 flex items-center justify-center text-on hover:bg-s3 pressable"><IBack size={19} /></button>
+        <span className="text-[14px] font-bold text-on">吃瓜详情</span>
       </div>
 
       <div className="flex-1 scroll-y pb-8">

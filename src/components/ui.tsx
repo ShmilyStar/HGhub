@@ -30,10 +30,10 @@ export function Sheet({ open, onClose, children, z = "z-40" }: { open: boolean; 
   if (!render) return null;
   return (
     <div className={`absolute inset-0 ${z}`}>
-      <div className={`absolute inset-0 bg-black/55 ${open ? "a-fade" : "opacity-0 transition-opacity duration-200"}`} onClick={onClose} />
-      <div className={`absolute bottom-0 inset-x-0 bg-s2 elev-3 overflow-hidden ${open ? "a-sheet" : "a-sheet-out"}`}
+      <div className={`absolute inset-0 bg-black/60 backdrop-blur-xs ${open ? "a-fade" : "opacity-0 transition-opacity duration-200"}`} onClick={onClose} />
+      <div className={`absolute bottom-0 inset-x-0 bg-s1/95 backdrop-blur-2xl border-t border-white/10 elev-3 overflow-hidden ${open ? "a-sheet" : "a-sheet-out"}`}
         style={{ paddingBottom: "var(--sab, 0px)", borderTopLeftRadius: "var(--r-lg)", borderTopRightRadius: "var(--r-lg)" }}>
-        <div className="pt-3 pb-1 flex justify-center"><div className="w-8 h-1 rounded-full bg-dim/70" /></div>
+        <div className="pt-3 pb-1 flex justify-center"><div className="w-9 h-1 rounded-full bg-white/20" /></div>
         {children}
       </div>
     </div>
@@ -50,8 +50,8 @@ export function Modal({ open, onClose, children, width = 340 }: { open: boolean;
   if (!render) return null;
   return (
     <div className="absolute inset-0 z-[55] flex items-center justify-center p-6">
-      <div className={`absolute inset-0 bg-black/65 backdrop-blur-sm ${open ? "a-fade" : "opacity-0 transition-opacity"}`} onClick={onClose} />
-      <div className={`relative bg-s3 rounded-(--r-lg) elev-3 ${open ? "a-scale-in" : "opacity-0 scale-90 transition-all"}`} style={{ width, maxWidth: "100%" }}>
+      <div className={`absolute inset-0 bg-black/68 backdrop-blur-md ${open ? "a-fade" : "opacity-0 transition-opacity"}`} onClick={onClose} />
+      <div className={`relative bg-s2/95 backdrop-blur-2xl border border-white/10 rounded-(--r-lg) elev-3 ${open ? "a-scale-in" : "opacity-0 scale-90 transition-all"}`} style={{ width, maxWidth: "100%" }}>
         {children}
       </div>
     </div>
@@ -62,8 +62,8 @@ export function Modal({ open, onClose, children, width = 340 }: { open: boolean;
 export function Toggle({ on, onChange, label }: { on: boolean; onChange: (b: boolean) => void; label?: string }) {
   return (
     <button onClick={() => onChange(!on)} aria-pressed={on} aria-label={label}
-      className={`relative w-[46px] h-[26px] rounded-full transition-colors duration-200 ${on ? "bg-primary" : "bg-s4"}`}>
-      <span className={`absolute top-[3px] w-5 h-5 rounded-full elev-1 transition-all duration-200 ${on ? "left-[23px] bg-on-primary" : "left-[3px] bg-mut"}`} />
+      className={`relative w-[46px] h-[26px] rounded-full transition-all duration-200 ${on ? "brand-grad glow-neon" : "bg-s4"}`}>
+      <span className={`absolute top-[3px] w-5 h-5 rounded-full elev-1 transition-all duration-200 ${on ? "left-[23px] bg-white" : "left-[3px] bg-mut"}`} />
     </button>
   );
 }
@@ -75,10 +75,10 @@ export function Empty({ icon, title, sub, action, onAction }: {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-8 text-center a-rise">
       <div className="w-16 h-16 rounded-(--r-md) tonal flex items-center justify-center mb-4">{icon}</div>
-      <div className="text-[15px] font-semibold text-on/90">{title}</div>
+      <div className="text-[15px] font-bold text-on/90">{title}</div>
       {sub && <div className="text-xs text-mut mt-1.5 leading-relaxed">{sub}</div>}
       {action && (
-        <button onClick={onAction} className="mt-5 px-6 h-10 rounded-(--r-ctl) bg-primary text-on-primary text-[13px] font-bold pressable">{action}</button>
+        <button onClick={onAction} className="mt-5 px-6 h-10 rounded-(--r-ctl) brand-grad glow-neon text-[13px] font-bold pressable">{action}</button>
       )}
     </div>
   );
@@ -93,14 +93,14 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 export function ToastHost() {
   const { toasts } = useStore();
   return (
-    <div className="absolute inset-x-0 z-[80] flex flex-col items-center gap-2 pointer-events-none px-6" style={{ bottom: "calc(var(--sab, 0px) + 96px)" }}>
+    <div className="absolute inset-x-0 z-[80] flex flex-col items-center gap-2 pointer-events-none px-6" style={{ bottom: "calc(var(--sab, 0px) + 104px)" }}>
       {toasts.map((t) => (
-        <div key={t.id} className="a-toast pointer-events-auto flex items-center gap-2.5 max-w-full bg-s4/95 backdrop-blur-md rounded-(--r-sm) pl-3.5 pr-4 py-2.5 elev-3">
+        <div key={t.id} className="a-toast pointer-events-auto flex items-center gap-2.5 max-w-full glass-pill rounded-full pl-4 pr-4.5 py-2.5">
           {t.icon === "ok" && <ICheck size={16} className="text-mint shrink-0" />}
           {t.icon === "heart" && <IHeartF size={16} className="text-neon shrink-0" />}
           {t.icon === "star" && <IStarF size={16} className="text-amber shrink-0" />}
-          {t.icon === "info" && <ISparkF size={15} className="text-cyan shrink-0" />}
-          <span className="text-[13px] text-on truncate">{t.msg}</span>
+          {t.icon === "info" && <ISparkF size={15} className="text-primary shrink-0" />}
+          <span className="text-[13px] font-medium text-white truncate">{t.msg}</span>
         </div>
       ))}
     </div>

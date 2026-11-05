@@ -705,21 +705,21 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
         </div>
       )}
 
-      {/* 移动端进度条：22px 热区，可拖动 */}
+      {/* 移动端进度条：22px 热区，可拖动，上移并与悬浮胶囊底栏留出安全防误触间距 */}
       {!isDesktop && (
-        <div ref={barRef} className="absolute inset-x-0 z-30"
-          style={{ bottom: fs ? "calc(var(--sab, 0px) + 52px)" : bottomInset - 2, height: 22, touchAction: "none" }}
+        <div ref={barRef} className="absolute inset-x-3.5 z-30"
+          style={{ bottom: fs ? "calc(var(--sab, 0px) + 52px)" : `calc(var(--sab, 0px) + ${bottomInset}px)`, height: 22, touchAction: "none" }}
           onPointerDown={onBarDown} onPointerMove={onBarMove} onPointerUp={onBarUp} onPointerCancel={onBarUp}>
-          <div className={`absolute inset-x-0 bottom-[6px] transition-all duration-150 ${barPct !== null || fs ? "h-[5px]" : "h-[2.5px]"} bg-white/20`}>
-            <div className="h-full relative"
-              style={{ width: `${barProgress * 100}%`, background: barPct !== null ? "var(--p-primary)" : "rgba(255,255,255,.92)", transition: barPct !== null ? "none" : "width .25s linear" }}>
-              <span className="absolute right-[-5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-white elev-1"
+          <div className={`absolute inset-x-0 bottom-[6px] rounded-full transition-all duration-150 ${barPct !== null || fs ? "h-[5px] bg-white/28" : "h-[3px] bg-white/22"}`}>
+            <div className="h-full relative rounded-full"
+              style={{ width: `${barProgress * 100}%`, background: barPct !== null ? "linear-gradient(90deg, #ff6636, #ff2957)" : "rgba(255,255,255,.92)", transition: barPct !== null ? "none" : "width .25s linear" }}>
+              <span className={`absolute right-[-5px] top-1/2 -translate-y-1/2 rounded-full bg-white elev-1 transition-transform duration-150 ${barPct !== null ? "w-3.5 h-3.5 scale-110" : "w-2.5 h-2.5"}`}
                 style={{ boxShadow: "0 0 10px var(--p-glow)" }} />
             </div>
           </div>
           {barPct !== null && (
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-7 px-3.5 py-1.5 rounded-lg bg-black/70 backdrop-blur-md text-[15px] font-bold text-white tabular-nums">
-              {fmtTime(barPct * (duration || 0))} <span className="text-white/45 text-[12px] font-medium">/ {fmtTime(duration)}</span>
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-7 px-3.5 py-1.5 rounded-full glass-pill text-[15px] font-bold text-white tabular-nums">
+              {fmtTime(barPct * (duration || 0))} <span className="text-white/50 text-[12px] font-medium">/ {fmtTime(duration)}</span>
             </div>
           )}
         </div>
@@ -728,8 +728,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
       {/* 移动端：全屏入口 */}
       {!isDesktop && !fs && (
         <button onClick={() => setFs(true)} aria-label="全屏"
-          className="absolute right-4 z-20 w-9 h-9 rounded-full bg-black/45 flex items-center justify-center text-white/90 pressable elev-1"
-          style={{ bottom: bottomInset + 56 }}>
+          className="absolute right-3.5 z-20 w-9 h-9 rounded-full bg-black/45 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 pressable elev-1"
+          style={{ bottom: `calc(var(--sab, 0px) + ${bottomInset + 56}px)` }}>
           <IExpand size={17} />
         </button>
       )}

@@ -15,31 +15,46 @@ import { DesktopRail, DesktopTitleBar } from "./components/DesktopChrome";
 import ResizeHandles from "./components/ResizeHandles";
 import { IGrid, IGridF, IHome, IHomeF, ISearch, IUser, IUserF, Logo } from "./icons";
 
-/* ============ 底部标签栏（Android）—— 细瘦纯文字、低侵入 ============ */
+/* ============ 底部标签栏（Android）—— 悬浮半透明毛玻璃胶囊 ============ */
 function TabBar() {
   const { tab, setTab } = useStore();
-  const items: { k: Tab; label: string }[] = [
-    { k: "home", label: "首页" },
-    { k: "search", label: "搜索" },
-    { k: "category", label: "分类" },
-    { k: "profile", label: "我的" },
+  const items: { k: Tab; label: string; Icon: typeof IHome; Filled: typeof IHomeF }[] = [
+    { k: "home", label: "首页", Icon: IHome, Filled: IHomeF },
+    { k: "search", label: "搜索", Icon: ISearch, Filled: ISearch },
+    { k: "category", label: "分类", Icon: IGrid, Filled: IGridF },
+    { k: "profile", label: "我的", Icon: IUser, Filled: IUserF },
   ];
   const onVideo = tab === "home";
   return (
-    <nav className={`absolute bottom-0 inset-x-0 z-30 ${onVideo ? "" : "bg-s2/95 elev-up"}`}
-      style={{ paddingBottom: "var(--sab, 0px)" }}>
-      <div className="h-[42px] flex items-center px-1">
-        {items.map(({ k, label }) => {
+    <nav
+      aria-label="底部导航"
+      className="absolute inset-x-0 z-30 px-4 pointer-events-none flex justify-center"
+      style={{ bottom: "calc(var(--sab, 0px) + 10px)" }}>
+      <div className={`pointer-events-auto w-full max-w-[376px] h-[54px] rounded-full glass-pill ${onVideo ? "is-video-pill" : ""} p-1.5 flex items-center gap-1`}>
+        {items.map(({ k, label, Icon, Filled }) => {
           const on = tab === k;
           return (
-            <button key={k} onClick={() => setTab(k)} className="flex-1 h-full flex flex-col items-center justify-center pressable">
-              <span className={`text-[13px] leading-none transition-colors duration-200 ${on
-                ? (onVideo ? "font-bold text-white" : "font-bold text-on")
-                : (onVideo ? "font-normal text-white/55" : "font-normal text-mut")}`}
-                style={onVideo ? { textShadow: "0 1px 8px rgba(0,0,0,.7)" } : undefined}>
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`relative flex-1 h-full rounded-full flex flex-col items-center justify-center gap-0.5 pressable transition-all duration-200 ${
+                on
+                  ? "bg-gradient-to-b from-[#ff5e3a]/24 to-[#ff2a55]/16 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+                  : onVideo
+                    ? "text-white/60 hover:text-white/85"
+                    : "text-mut hover:text-on"
+              }`}>
+              <span className={`transition-transform duration-200 ${on ? "scale-105 text-[#ff6442]" : ""}`}>
+                {on ? <Filled size={18} strokeWidth={2.2} /> : <Icon size={18} strokeWidth={1.85} />}
+              </span>
+              <span
+                className={`text-[10.5px] leading-none tracking-wide transition-colors duration-200 ${
+                  on
+                    ? onVideo ? "font-bold text-white" : "font-bold text-on"
+                    : "font-medium"
+                }`}>
                 {label}
               </span>
-              <span className={`mt-[5px] w-[3px] h-[3px] rounded-full transition-opacity duration-200 ${on ? (onVideo ? "bg-white" : "bg-primary") : "opacity-0"}`} />
             </button>
           );
         })}
@@ -102,10 +117,11 @@ function AppBody() {
 
   const vis = (k: Tab) => (tab === k ? "absolute inset-0" : "absolute inset-0 invisible pointer-events-none");
   const pageActive = stack.length === 0 && !loginOpen;
-  const bottomInset = platform === "android" ? (fs ? 0 : 48) : 14;
+  /* 悬浮毛玻璃胶囊高 54px + 底距 10px = 64px，进度条上移至 78px 处留出充足防误触安全区 */
+  const bottomInset = platform === "android" ? (fs ? 0 : 78) : 14;
   /* 栈页（从搜索/分类/我的进入的播放页、图文页）不显示底栏：
      底栏会盖住评论抽屉的输入框，且这些页面本身是沉浸的 */
-  const stackInset = platform === "android" ? (fs ? 0 : 20) : 14;
+  const stackInset = platform === "android" ? (fs ? 0 : 24) : 14;
 
   return (
     <div className={`absolute inset-0 flex bg-canvas plat-${platform}`}>

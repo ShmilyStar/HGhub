@@ -25,14 +25,14 @@ export function EpisodesPanel({ videoId, episodes, current, onPick, onClose }: {
         <div className="grid grid-cols-4 gap-2">
           {list.map((e) => (
             <button key={e.ep_num} onClick={() => onPick(e.ep_num)}
-              className={`h-10 rounded-(--r-sm) text-[12px] font-semibold pressable ${e.ep_num === current ? "bg-primary text-on-primary" : "bg-s3 text-on/80"}`}>
-              {e.ep_num}
+              className={`h-10 rounded-(--r-sm) text-[12.5px] font-bold pressable ${e.ep_num === current ? "brand-grad glow-neon" : "bg-white/6 border border-white/8 text-on/85"}`}>
+              第 {e.ep_num} 集
             </button>
           ))}
         </div>
         {!episodes.length && <div className="text-center text-[11.5px] text-dim py-8">暂无剧集</div>}
       </div>
-      <div className="shrink-0 px-4 py-2.5 text-[10.5px] text-dim bg-s2/60">剧集 ID {videoId} · 点选即切换播放</div>
+      <div className="shrink-0 px-4 py-2.5 text-[10.5px] text-dim bg-black/20 border-t border-white/6">剧集 ID {videoId} · 点选即切换播放</div>
     </div>
   );
 }
