@@ -3,13 +3,14 @@ import { api, APP_VERSION, fmt, logLine, platform } from "../api";
 import type { Detail } from "../types";
 import { formatVipExpire, useStore } from "../store";
 import { Avatar, Empty, Img, Modal, Toggle } from "../components/ui";
-import { IBoltF, IBroom, IChevR, IClock, IHeart, IInfo, ILink, ILogout, IMoon, ISparkF, IStar, ISun, IUser } from "../icons";
+import { IBoltF, IBroom, IChevR, IClock, IHeart, IInfo, ILink, ILogout, IMoon, IShield, ISparkF, IStar, ISun, IUser } from "../icons";
 
 export default function Profile({ wide: _wide }: { wide: boolean }) {
   const {
     user, setLoginOpen, logout, theme, setTheme,
     history, favs, clearHistory, clearLocal, push, toast,
     vipExpireAt, deviceId, setVipModalOpen, progress,
+    disguiseEnabled, disguisePin, setDisguiseEnabled, setDisguisePin, lockDisguiseNow,
   } = useStore();
   const [tab, setTab] = useState<"fav" | "history">("fav");
   const [cards, setCards] = useState<Detail[]>([]);
@@ -17,6 +18,8 @@ export default function Profile({ wide: _wide }: { wide: boolean }) {
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pinEditing, setPinEditing] = useState(false);
+  const [pinDraft, setPinDraft] = useState(disguisePin);
 
   const vipInfo = formatVipExpire(vipExpireAt);
   const ids = tab === "fav" ? favs : history;
@@ -102,6 +105,80 @@ export default function Profile({ wide: _wide }: { wide: boolean }) {
               {vipInfo.isVip ? "输入卡密续期 / 叠加时长" : "输入数字卡密 · 立即开通 VIP"}
             </button>
           </div>
+        </div>
+
+        {/* 🛡️ 防查岗伪装模式（计算器锁）卡片 */}
+        <div className="mt-3.5 rounded-(--r-lg) glass-card p-4 border border-white/10 a-rise">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="w-9 h-9 rounded-xl bg-[#f7c355]/15 border border-[#f7c355]/35 flex items-center justify-center text-[#f7c355] shrink-0">
+                <IShield size={18} />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[14px] font-extrabold text-on">防查岗伪装模式（计算器锁）</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold ${disguiseEnabled ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-white/8 text-mut"}`}>
+                    {disguiseEnabled ? "已开启守护" : "未开启"}
+                  </span>
+                </div>
+                <div className="text-[11px] text-mut mt-0.5">
+                  启动或切后台自动变真计算器 · 输入 <b className="text-[#ffd27d] font-mono">{disguisePin}=</b> 解锁
+                </div>
+              </div>
+            </div>
+            <Toggle
+              on={disguiseEnabled}
+              onChange={(on) => {
+                setDisguiseEnabled(on);
+                toast(on ? `已开启防查岗伪装（解锁暗号：${disguisePin}=）` : "已关闭防查岗伪装模式", "ok");
+              }}
+            />
+          </div>
+
+          {pinEditing ? (
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                value={pinDraft}
+                onChange={(e) => setPinDraft(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                placeholder="输入3-8位纯数字暗号（如 8888）"
+                inputMode="numeric"
+                className="flex-1 h-9 px-3 rounded-(--r-ctl) bg-black/40 border border-[#f7c355]/40 text-[12.5px] font-mono text-white outline-none"
+              />
+              <button
+                onClick={() => {
+                  const clean = pinDraft.replace(/\D/g, "");
+                  if (clean.length < 3) {
+                    toast("暗号请至少输入 3 位数字", "info");
+                    return;
+                  }
+                  setDisguisePin(clean);
+                  setPinEditing(false);
+                  toast(`解锁暗号已改为：输入 ${clean} 再按 =`, "ok");
+                }}
+                className="h-9 px-3.5 rounded-(--r-ctl) gold-grad text-[12px] font-bold pressable">
+                保存暗号
+              </button>
+              <button
+                onClick={() => { setPinDraft(disguisePin); setPinEditing(false); }}
+                className="h-9 px-3 rounded-(--r-ctl) bg-white/8 text-[12px] text-mut pressable">
+                取消
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={lockDisguiseNow}
+                className="flex-1 h-9 rounded-(--r-ctl) bg-white/10 hover:bg-white/14 border border-white/12 text-[12px] font-bold text-white flex items-center justify-center gap-1.5 pressable">
+                <IShield size={14} className="text-[#f7c355]" />
+                <span>立即伪装成计算器（输入 {disguisePin}= 返回）</span>
+              </button>
+              <button
+                onClick={() => { setPinDraft(disguisePin); setPinEditing(true); }}
+                className="h-9 px-3 rounded-(--r-ctl) bg-white/6 border border-white/8 text-[11.5px] font-medium text-[#ffd27d] pressable">
+                改暗号
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 已登录账号资料卡（可选，仅登录时展示） */}

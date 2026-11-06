@@ -11,6 +11,7 @@ import Feed from "./components/Feed";
 import { PostsPage, PostDetail } from "./pages/Posts";
 import LoginModal from "./components/LoginModal";
 import VipModal from "./components/VipModal";
+import CalculatorLock from "./components/CalculatorLock";
 import { ToastHost } from "./components/ui";
 import { DesktopRail, DesktopTitleBar } from "./components/DesktopChrome";
 import ResizeHandles from "./components/ResizeHandles";
@@ -83,7 +84,7 @@ function StackPage({ page, onBack, wide, top, bottomInset }: {
 
 /* ============ 应用主体 ============ */
 function AppBody() {
-  const { platform, tab, setTab, stack, pop, loginOpen, setLoginOpen, fs } = useStore();
+  const { platform, tab, setTab, stack, pop, loginOpen, setLoginOpen, fs, disguiseLocked } = useStore();
   const mainRef = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(platform !== "android");
   const [collapsed, setCollapsed] = useState(false);
@@ -100,6 +101,7 @@ function AppBody() {
   /* 全局键盘 */
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
+      if (disguiseLocked) return;
       const t = e.target as HTMLElement;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) {
         if (e.key === "Escape") t.blur();
@@ -114,10 +116,10 @@ function AppBody() {
     };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
-  }, [stack.length, pop, setTab, loginOpen, setLoginOpen]);
+  }, [stack.length, pop, setTab, loginOpen, setLoginOpen, disguiseLocked]);
 
   const vis = (k: Tab) => (tab === k ? "absolute inset-0" : "absolute inset-0 invisible pointer-events-none");
-  const pageActive = stack.length === 0 && !loginOpen;
+  const pageActive = stack.length === 0 && !loginOpen && !disguiseLocked;
   /* 悬浮毛玻璃胶囊高 54px + 底距 10px = 64px，进度条上移至 78px 处留出充足防误触安全区 */
   const bottomInset = platform === "android" ? (fs ? 0 : 78) : 14;
   /* 栈页（从搜索/分类/我的进入的播放页、图文页）不显示底栏：
@@ -135,7 +137,7 @@ function AppBody() {
 
         {stack.map((p, i) => (
           <div key={p.key} className="absolute inset-0 z-30 bg-bg a-page-in" style={{ boxShadow: "-18px 0 40px rgba(0,0,0,.5)" }}>
-            <StackPage page={p} onBack={pop} wide={wide} top={i === stack.length - 1} bottomInset={stackInset} />
+            <StackPage page={p} onBack={pop} wide={wide} top={i === stack.length - 1 && !disguiseLocked} bottomInset={stackInset} />
           </div>
         ))}
 
@@ -162,7 +164,7 @@ function DesktopShell() {
 }
 
 function ShellInner({ collapsed, theater }: { collapsed: boolean; theater: boolean }) {
-  const { stack, pop, loginOpen, setLoginOpen, tab, setTab, platform } = useStore();
+  const { stack, pop, loginOpen, setLoginOpen, tab, setTab, platform, disguiseLocked } = useStore();
   const mainRef = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(true);
 
@@ -177,6 +179,7 @@ function ShellInner({ collapsed, theater }: { collapsed: boolean; theater: boole
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
+      if (disguiseLocked) return;
       const t = e.target as HTMLElement;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) {
         if (e.key === "Escape") t.blur();
@@ -191,10 +194,10 @@ function ShellInner({ collapsed, theater }: { collapsed: boolean; theater: boole
     };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
-  }, [stack.length, pop, setTab, loginOpen, setLoginOpen]);
+  }, [stack.length, pop, setTab, loginOpen, setLoginOpen, disguiseLocked]);
 
   const vis = (k: Tab) => (tab === k ? "absolute inset-0" : "absolute inset-0 invisible pointer-events-none");
-  const pageActive = stack.length === 0 && !loginOpen;
+  const pageActive = stack.length === 0 && !loginOpen && !disguiseLocked;
 
   return (
     <div className={`absolute inset-0 flex bg-canvas plat-${platform}`}>
@@ -206,7 +209,7 @@ function ShellInner({ collapsed, theater }: { collapsed: boolean; theater: boole
         <div className={vis("profile")}><Profile wide={wide} /></div>
         {stack.map((p, i) => (
           <div key={p.key} className="absolute inset-0 z-30 bg-bg win-page-in" style={{ boxShadow: "-18px 0 40px rgba(0,0,0,.5)" }}>
-            <StackPage page={p} onBack={pop} wide={wide} top={i === stack.length - 1} bottomInset={14} />
+            <StackPage page={p} onBack={pop} wide={wide} top={i === stack.length - 1 && !disguiseLocked} bottomInset={14} />
           </div>
         ))}
       </div>
@@ -228,13 +231,16 @@ function MobileShell() {
 
 /* ============ 入口 ============ */
 export default function App() {
-  const { platform, loginOpen, setLoginOpen, vipModalOpen, setVipModalOpen, tab, setTab, stack, pop, fs, setFs } = useStore();
+  const { platform, loginOpen, setLoginOpen, vipModalOpen, setVipModalOpen, tab, setTab, stack, pop, fs, setFs, disguiseLocked } = useStore();
 
   /* —— 安卓硬件返回键 ——
-     层级：全屏 → 面板/弹层 → VIP框/登录框 → 页面栈 → 回首页 → 退出应用。
-     不注册这个监听，Tauri 会直接 webView.goBack() 或退出，表现就是「任意页面返回都回桌面」。 */
+     层级：计算器伪装层 → 全屏 → 面板/弹层 → VIP框/登录框 → 页面栈 → 回首页 → 退出应用。 */
   const backRef = useRef<() => void>(() => {});
   backRef.current = () => {
+    if (disguiseLocked) {
+      invoke("plugin:app|exit", { code: 0 }).catch(() => {});
+      return;
+    }
     if (fs) { setFs(false); return; }                        // 沉浸全屏
     if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); return; }
     if (runBack()) return;                                  // 播放器的选集/评论/图文面板
@@ -277,6 +283,7 @@ export default function App() {
       {platform === "android" ? <MobileShell /> : <DesktopShell />}
       <VipModal />
       <LoginModal />
+      <CalculatorLock />
       <ToastHost />
       {/* 登录遮罩键盘处理占位 */}
       {loginOpen && <div className="hidden" onClick={() => setLoginOpen(false)} />}

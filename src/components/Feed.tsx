@@ -10,7 +10,7 @@ import { sanitizeHtml } from "../html";
 import { setBackHandler } from "../back";
 import {
   IBack, IBoltF, IChevronDown, IChevronUp, IClose, ICommentF, ICompress, IExpand, IFileText, IHeart, IHeartF,
-  ILink, IList, ILockF, IPauseF, IPlayF, IPlus, IReplay, ISparkF, IStar, IStarF, IVol, IVolMute,
+  ILink, IList, ILockF, IPauseF, IPlayF, IPlus, IReplay, IShield, ISparkF, IStar, IStarF, IVol, IVolMute,
 } from "../icons";
 
 const PREVIEW_LIMIT = 15;
@@ -689,6 +689,9 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
                     <button onClick={onBack} className="w-9 h-9 rounded-full bg-black/45 flex items-center justify-center text-white pressable elev-1"><IBack size={20} /></button>
                     <span className="text-[14.5px] font-semibold text-white tsh truncate">{title}</span>
                     <span className="ml-auto px-2 py-0.5 rounded-full bg-black/45 text-[11px] font-semibold text-white/80">{index + 1} / {videoIds.length}</span>
+                    <button onClick={store.lockDisguiseNow} aria-label="紧急伪装成计算器" className="w-9 h-9 rounded-full bg-black/45 flex items-center justify-center text-[#f7c355] pressable elev-1">
+                      <IShield size={17} />
+                    </button>
                     <button onClick={() => setMuted((m) => !m)} className="w-9 h-9 rounded-full bg-black/45 flex items-center justify-center text-white pressable elev-1">
                       {muted ? <IVolMute size={17} /> : <IVol size={17} />}
                     </button>

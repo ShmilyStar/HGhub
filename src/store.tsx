@@ -52,6 +52,8 @@ type Persist = {
   vipCode: string;
   deviceId: string;
   progress: Record<number, WatchProgress>;
+  disguiseEnabled: boolean;
+  disguisePin: string;
 };
 
 function genDeviceId(): string {
@@ -67,6 +69,8 @@ const DEFAULTS: Persist = {
   muted: true, volume: 0.7, searchHist: [],
   vipExpireAt: 0, vipCode: "", deviceId: "",
   progress: {},
+  disguiseEnabled: false,
+  disguisePin: "8888",
 };
 
 function loadPersist(): Persist {
@@ -173,6 +177,14 @@ type Store = {
   progress: Record<number, WatchProgress>;
   saveProgress: (id: number, ep: number, time: number, totalEp?: number, force?: boolean) => void;
   getProgress: (id: number) => WatchProgress | undefined;
+  /* 防查岗计算器伪装模式 */
+  disguiseEnabled: boolean;
+  disguisePin: string;
+  disguiseLocked: boolean;
+  setDisguiseEnabled: (on: boolean) => void;
+  setDisguisePin: (pin: string) => void;
+  lockDisguiseNow: () => void;
+  unlockDisguise: (inputPin: string) => boolean;
 };
 
 const Ctx = createContext<Store>(null as unknown as Store);
@@ -187,6 +199,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
   const [vipModalOpen, setVipModalOpen] = useState(false);
+  const [disguiseLocked, setDisguiseLocked] = useState<boolean>(() => !!loadPersist().disguiseEnabled);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [theater, setTheaterState] = useState(false);
@@ -361,6 +374,55 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [toast]);
 
   const isVip = p.vipExpireAt === -1 || p.vipExpireAt > nowTick;
+  const disguisePin = p.disguisePin || "8888";
+
+  const pauseAllVideos = useCallback(() => {
+    try {
+      document.querySelectorAll("video").forEach((v) => {
+        try { v.pause(); } catch { /* ignore */ }
+      });
+    } catch { /* ignore */ }
+  }, []);
+
+  const setDisguiseEnabled = useCallback((on: boolean) => {
+    setP((s) => ({ ...s, disguiseEnabled: on, disguisePin: s.disguisePin || "8888" }));
+    if (!on) setDisguiseLocked(false);
+  }, []);
+
+  const setDisguisePin = useCallback((pin: string) => {
+    const clean = pin.replace(/\D/g, "").slice(0, 8);
+    if (clean.length < 3) return;
+    setP((s) => ({ ...s, disguisePin: clean }));
+  }, []);
+
+  const lockDisguiseNow = useCallback(() => {
+    pauseAllVideos();
+    setP((s) => ({ ...s, disguiseEnabled: true, disguisePin: s.disguisePin || "8888" }));
+    setDisguiseLocked(true);
+  }, [pauseAllVideos]);
+
+  const unlockDisguise = useCallback((inputPin: string): boolean => {
+    const target = p.disguisePin || "8888";
+    if (inputPin === target) {
+      setDisguiseLocked(false);
+      toast("已解除计算器伪装", "ok");
+      return true;
+    }
+    return false;
+  }, [p.disguisePin, toast]);
+
+  /* 开启伪装模式后：只要切后台或息屏，0.1秒内自动暂停所有视频并重新锁回计算器界面 */
+  useEffect(() => {
+    if (!p.disguiseEnabled) return undefined;
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        pauseAllVideos();
+        setDisguiseLocked(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [p.disguiseEnabled, pauseAllVideos]);
 
   const value = useMemo<Store>(() => ({
     platform: envPlatform,
@@ -384,10 +446,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     progress: p.progress || {},
     saveProgress,
     getProgress,
+    disguiseEnabled: !!p.disguiseEnabled,
+    disguisePin,
+    disguiseLocked,
+    setDisguiseEnabled,
+    setDisguisePin,
+    lockDisguiseNow,
+    unlockDisguise,
   }), [theme, tab, setTab, stack, push, pop, user, loginOpen, logout,
     p, toggleLikeLocal, toggleFavLocal, toggleFollowLocal, addHistory, clearHistory, clearLocal,
     setMuted, setVolume, addSearch, clearSearchHist, toasts, toast, theater, setTheater, fs, setFs,
-    isVip, vipModalOpen, activateVip, saveProgress, getProgress]);
+    isVip, vipModalOpen, activateVip, saveProgress, getProgress,
+    disguisePin, disguiseLocked, setDisguiseEnabled, setDisguisePin, lockDisguiseNow, unlockDisguise]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
