@@ -753,8 +753,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
                 )}
 
                 <button onClick={() => {
-                  const u = kind === "post" ? (posts[curId]?.video_url || meta.title) : `https://huangguoai.com/video/${curId}/`;
-                  navigator.clipboard?.writeText(u).then(() => toast("链接已复制", "ok")).catch(() => {});
+                  const shareText = `【黄果短剧】${meta.title || "精彩短剧"}\n快来黄果 App 畅看全集！`;
+                  navigator.clipboard?.writeText(shareText).then(() => toast("分享文案已复制", "ok")).catch(() => {});
                 }} className="flex flex-col items-center gap-1 pressable">
                   <ILink size={25} className="text-white tsh" />
                   <span className="text-[10.5px] text-white/90">分享</span>

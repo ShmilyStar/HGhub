@@ -93,14 +93,16 @@ export function Kbd({ children }: { children: React.ReactNode }) {
 export function ToastHost() {
   const { toasts } = useStore();
   return (
-    <div className="absolute inset-x-0 z-[80] flex flex-col items-center gap-2 pointer-events-none px-6" style={{ bottom: "calc(var(--sab, 0px) + 104px)" }}>
+    <div
+      className="fixed inset-x-0 z-[140] flex flex-col items-center gap-2 pointer-events-none px-4"
+      style={{ top: "calc(var(--sat, 0px) + 14px)" }}>
       {toasts.map((t) => (
-        <div key={t.id} className="a-toast pointer-events-auto flex items-center gap-2.5 max-w-full glass-pill rounded-full pl-4 pr-4.5 py-2.5">
-          {t.icon === "ok" && <ICheck size={16} className="text-mint shrink-0" />}
-          {t.icon === "heart" && <IHeartF size={16} className="text-neon shrink-0" />}
-          {t.icon === "star" && <IStarF size={16} className="text-amber shrink-0" />}
-          {t.icon === "info" && <ISparkF size={15} className="text-primary shrink-0" />}
-          <span className="text-[13px] font-medium text-white truncate">{t.msg}</span>
+        <div key={t.id} className="a-toast pointer-events-auto flex items-center gap-2 max-w-[90vw] glass-pill rounded-full px-4 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)] border border-white/15">
+          {t.icon === "ok" && <ICheck size={15} className="text-mint shrink-0" />}
+          {t.icon === "heart" && <IHeartF size={15} className="text-neon shrink-0" />}
+          {t.icon === "star" && <IStarF size={15} className="text-amber shrink-0" />}
+          {t.icon === "info" && <ISparkF size={14} className="text-primary shrink-0" />}
+          <span className="text-[12.5px] font-medium text-white truncate leading-snug">{t.msg}</span>
         </div>
       ))}
     </div>

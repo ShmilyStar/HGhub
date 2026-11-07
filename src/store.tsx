@@ -54,6 +54,7 @@ type Persist = {
   progress: Record<number, WatchProgress>;
   disguiseEnabled: boolean;
   disguisePin: string;
+  disguiseIconSync: boolean;
 };
 
 function genDeviceId(): string {
@@ -71,6 +72,7 @@ const DEFAULTS: Persist = {
   progress: {},
   disguiseEnabled: false,
   disguisePin: "8888",
+  disguiseIconSync: false,
 };
 
 function loadPersist(): Persist {
@@ -181,8 +183,10 @@ type Store = {
   disguiseEnabled: boolean;
   disguisePin: string;
   disguiseLocked: boolean;
+  disguiseIconSync: boolean;
   setDisguiseEnabled: (on: boolean) => void;
   setDisguisePin: (pin: string) => void;
+  setDisguiseIconSync: (on: boolean) => void;
   lockDisguiseNow: () => void;
   unlockDisguise: (inputPin: string) => boolean;
 };
@@ -386,7 +390,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setDisguiseEnabled = useCallback((on: boolean) => {
     setP((s) => ({ ...s, disguiseEnabled: on, disguisePin: s.disguisePin || "8888" }));
-    if (!on) setDisguiseLocked(false);
+    if (!on) {
+      setDisguiseLocked(false);
+      if (p.disguiseIconSync) {
+        api.setLauncherIcon("default");
+      }
+    } else if (p.disguiseIconSync) {
+      api.setLauncherIcon("calc");
+    }
+  }, [p.disguiseIconSync]);
+
+  const setDisguiseIconSync = useCallback((on: boolean) => {
+    setP((s) => ({ ...s, disguiseIconSync: on }));
+    if (on) {
+      api.setLauncherIcon("calc");
+    } else {
+      api.setLauncherIcon("default");
+    }
   }, []);
 
   const setDisguisePin = useCallback((pin: string) => {
@@ -399,7 +419,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     pauseAllVideos();
     setP((s) => ({ ...s, disguiseEnabled: true, disguisePin: s.disguisePin || "8888" }));
     setDisguiseLocked(true);
-  }, [pauseAllVideos]);
+    if (p.disguiseIconSync) {
+      api.setLauncherIcon("calc");
+    }
+  }, [pauseAllVideos, p.disguiseIconSync]);
 
   const unlockDisguise = useCallback((inputPin: string): boolean => {
     const target = p.disguisePin || "8888";
@@ -449,15 +472,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     disguiseEnabled: !!p.disguiseEnabled,
     disguisePin,
     disguiseLocked,
+    disguiseIconSync: !!p.disguiseIconSync,
     setDisguiseEnabled,
     setDisguisePin,
+    setDisguiseIconSync,
     lockDisguiseNow,
     unlockDisguise,
   }), [theme, tab, setTab, stack, push, pop, user, loginOpen, logout,
     p, toggleLikeLocal, toggleFavLocal, toggleFollowLocal, addHistory, clearHistory, clearLocal,
     setMuted, setVolume, addSearch, clearSearchHist, toasts, toast, theater, setTheater, fs, setFs,
     isVip, vipModalOpen, activateVip, saveProgress, getProgress,
-    disguisePin, disguiseLocked, setDisguiseEnabled, setDisguisePin, lockDisguiseNow, unlockDisguise]);
+    disguisePin, disguiseLocked, setDisguiseEnabled, setDisguisePin, setDisguiseIconSync, lockDisguiseNow, unlockDisguise]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

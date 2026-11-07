@@ -311,3 +311,29 @@ pub async fn api_post_comments(
         .get(&format!("/api/posts/{id}/comments?page={page}&size={size}"))
         .await
 }
+
+#[tauri::command]
+pub async fn set_launcher_icon(icon: String) -> Result<bool, String> {
+    #[cfg(target_os = "android")]
+    {
+        let ctx = ndk_context::android_context();
+        let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.map_err(|e| e.to_string())?;
+        let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
+        let activity = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
+        let j_icon = env.new_string(&icon).map_err(|e| e.to_string())?;
+        let res = env
+            .call_method(
+                &activity,
+                "setLauncherIcon",
+                "(Ljava/lang/String;)Z",
+                &[(&j_icon).into()],
+            )
+            .map_err(|e| e.to_string())?;
+        return Ok(res.z().unwrap_or(false));
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = icon;
+        Ok(true)
+    }
+}

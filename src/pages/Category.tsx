@@ -52,7 +52,7 @@ export default function Category({ wide }: { wide: boolean }) {
         </div>
       </div>
 
-      <div className="flex-1 scroll-y pb-28 pt-2">
+      <div className="flex-1 scroll-y pt-2" style={{ paddingBottom: "calc(var(--sab, 0px) + 96px)" }}>
         {/* 排行榜入口（大厂黑金/暖色流光横幅） */}
         <button onClick={() => push({ kind: "ranks" })}
           className="mx-4 mb-5 w-[calc(100%-2rem)] flex items-center gap-3.5 rounded-(--r-md) glass-card p-3.5 text-left pressable relative overflow-hidden">

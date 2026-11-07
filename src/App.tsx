@@ -133,7 +133,7 @@ function AppBody() {
         <div className={vis("home")}><Home active={pageActive && tab === "home"} bottomInset={bottomInset} /></div>
         <div className={vis("search")}><Search active={pageActive && tab === "search"} wide={wide} /></div>
         <div className={vis("category")}><Category wide={wide} /></div>
-        <div className={vis("profile")}><Profile wide={wide} /></div>
+        <div className={vis("profile")}><Profile wide={wide} bottomInset={bottomInset} /></div>
 
         {stack.map((p, i) => (
           <div key={p.key} className="absolute inset-0 z-30 bg-bg a-page-in" style={{ boxShadow: "-18px 0 40px rgba(0,0,0,.5)" }}>

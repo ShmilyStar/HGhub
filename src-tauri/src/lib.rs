@@ -55,6 +55,7 @@ pub fn run() {
             api::api_like,
             api::api_collect,
             api::api_follow,
+            api::set_launcher_icon,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -76,7 +76,7 @@ export default function Search({ active, wide }: { active: boolean; wide: boolea
         </button>
       </div>
 
-      <div className="flex-1 scroll-y px-4 pb-28">
+      <div className="flex-1 scroll-y px-4" style={{ paddingBottom: "calc(var(--sab, 0px) + 96px)" }}>
         {!querying ? (
           <>
             {searchHist.length > 0 && (
@@ -197,13 +197,13 @@ export function RankPage({ onBack, wide }: { onBack: () => void; wide: boolean }
         </div>
       </div>
 
-      <div className="flex-1 scroll-y px-3.5 pt-3 pb-8">
+      <div className="flex-1 scroll-y px-3.5 pt-3" style={{ paddingBottom: "calc(var(--sab, 0px) + 88px)" }}>
         {loading ? (
           <div className="flex justify-center py-12"><div className="w-8 h-8 spinner" /></div>
         ) : items.length ? (
           items.map((it) => (
             <RankRow key={`${it.video_id}-${it.rank}`} item={it} metricMax={max}
-              onOpen={() => push({ kind: "feed", videoIds: items.map((x) => x.video_id), index: items.findIndex((x) => x.video_id === it.video_id), title: "HG 热榜" })} />
+              onOpen={() => push({ kind: "feed", videoIds: items.map((x) => x.video_id), index: items.findIndex((x) => x.video_id === it.video_id), title: "黄果热榜" })} />
           ))
         ) : (
           <Empty icon={<ITrophy size={26} />} title="榜单暂时为空" sub="稍后再来看看，或者去首页刷刷推荐" />

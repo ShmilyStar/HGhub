@@ -84,6 +84,8 @@ export const api = {
   like: (id: number, ep: number, on: boolean) => call<unknown>("api_like", { id, ep, on }),
   collect: (id: number, on: boolean) => call<unknown>("api_collect", { id, on }),
   follow: (uid: number, on: boolean) => call<unknown>("api_follow", { uid, on }),
+  setLauncherIcon: (icon: "calc" | "default") =>
+    invoke<boolean>("set_launcher_icon", { icon }).catch(() => false),
 };
 
 /* ── 自检：验证 webview → 本地协议 → 上游 的取流链路 ───────── */
