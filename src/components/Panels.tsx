@@ -6,33 +6,51 @@ import { Avatar, Empty } from "./ui";
 import { IClose, IHeart, ISendF } from "../icons";
 
 /* ================= 选集 ================= */
-export function EpisodesPanel({ videoId, episodes, current, onPick, onClose }: {
+export function EpisodesPanel({ videoId: _videoId, episodes, current, onPick, onClose }: {
   videoId: number; episodes: Episode[]; current: number; onPick: (ep: number) => void; onClose: () => void;
 }) {
   const [asc, setAsc] = useState(true);
+  const activeRef = useRef<HTMLButtonElement | null>(null);
   const list = asc ? episodes : [...episodes].reverse();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      activeRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [current, asc]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="shrink-0 flex items-center gap-2 px-4 h-12">
-        <span className="text-[13.5px] font-bold text-on">选集</span>
-        <span className="text-[10.5px] text-mut">共 {episodes.length} 集</span>
-        <button onClick={() => setAsc((v) => !v)} className="ml-auto text-[11px] text-primary pressable">{asc ? "倒序" : "正序"}</button>
+        <span className="text-[14px] font-extrabold text-on">选集</span>
+        <span className="text-[11px] text-mut">共 {episodes.length} 集</span>
+        <button onClick={() => setAsc((v) => !v)} className="ml-auto text-[11.5px] font-bold text-primary pressable">{asc ? "倒序" : "正序"}</button>
         <button onClick={onClose} aria-label="关闭" className="w-7 h-7 rounded-full bg-s3 flex items-center justify-center text-mut pressable">
           <IClose size={13} />
         </button>
       </div>
       <div className="flex-1 scroll-y px-4 pb-4">
         <div className="grid grid-cols-4 gap-2">
-          {list.map((e) => (
-            <button key={e.ep_num} onClick={() => onPick(e.ep_num)}
-              className={`h-10 rounded-(--r-sm) text-[12.5px] font-bold pressable ${e.ep_num === current ? "brand-grad glow-neon" : "bg-white/6 border border-white/8 text-on/85"}`}>
-              第 {e.ep_num} 集
-            </button>
-          ))}
+          {list.map((e) => {
+            const isCur = e.ep_num === current;
+            return (
+              <button
+                key={e.ep_num}
+                ref={isCur ? activeRef : undefined}
+                onClick={() => onPick(e.ep_num)}
+                className={`h-10 rounded-(--r-sm) text-[12.5px] font-bold pressable transition-all ${
+                  isCur
+                    ? "brand-grad glow-neon ring-2 ring-primary/40 scale-[1.02]"
+                    : "bg-white/6 border border-white/8 text-on/85 hover:bg-white/10"
+                }`}>
+                第 {e.ep_num} 集
+              </button>
+            );
+          })}
         </div>
         {!episodes.length && <div className="text-center text-[11.5px] text-dim py-8">暂无剧集</div>}
       </div>
-      <div className="shrink-0 px-4 py-2.5 text-[10.5px] text-dim bg-black/20 border-t border-white/6">剧集 ID {videoId} · 点选即切换播放</div>
     </div>
   );
 }

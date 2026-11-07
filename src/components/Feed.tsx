@@ -9,8 +9,8 @@ import { ArticlePanel, CommentsPanel, EpisodesPanel } from "./Panels";
 import { sanitizeHtml } from "../html";
 import { setBackHandler } from "../back";
 import {
-  IBack, IBoltF, IChevronDown, IChevronUp, IClose, ICommentF, ICompress, IExpand, IFileText, IHeart, IHeartF,
-  ILink, IList, ILockF, IPauseF, IPlayF, IPlus, IReplay, IShield, ISparkF, IStar, IStarF, IVol, IVolMute,
+  IAspect, IBack, IBoltF, IChevronDown, IChevronUp, IClose, ICommentF, ICompress, IExpand, IFileText, IHeart, IHeartF,
+  ILink, IList, ILockF, IPauseF, IPlayF, IPlus, IReplay, IScreenClean, IShield, ISparkF, IStar, IStarF, IVol, IVolMute,
 } from "../icons";
 
 const PREVIEW_LIMIT = 15;
@@ -60,6 +60,10 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
   const vipLockedRef = useRef(false);
   const [panel, setPanel] = useState<"episodes" | "comments" | "article" | null>(null);
   const [descOpen, setDescOpen] = useState(false);
+  const [cleanScreen, setCleanScreen] = useState(false);
+  const [customFit, setCustomFit] = useState<"cover" | "contain" | null>(null);
+  const [burstHearts, setBurstHearts] = useState<{ id: number; x: number; y: number; rot: number }[]>([]);
+  const lastTapRef = useRef<{ t: number; x: number; y: number }>({ t: 0, x: 0, y: 0 });
   const theater = store.theater;
   const setTheater = store.setTheater;
   const fs = store.fs;
@@ -406,12 +410,16 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, panel, time, index, togglePlaySafe, seekSafe]);
 
-  /* 安卓返回键：面板打开时先关面板 */
+  /* 安卓返回键：清屏模式先退出清屏，面板打开时先关面板 */
   useEffect(() => {
+    if (cleanScreen) {
+      setBackHandler(() => { setCleanScreen(false); return true; });
+      return () => setBackHandler(null);
+    }
     if (!panel) { setBackHandler(null); return undefined; }
     setBackHandler(() => { setPanel(null); return true; });
     return () => setBackHandler(null);
-  }, [panel]);
+  }, [panel, cleanScreen]);
 
   useEffect(() => {
     const onFs = () => setFullscreen(!!document.fullscreenElement);
@@ -485,7 +493,7 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
     }
   };
 
-  const onUp = () => {
+  const onUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const g = gesture.current;
     gesture.current = null;
     if (!g) return;
@@ -512,7 +520,44 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
       }
       return;
     }
-    if (Date.now() - g.t < 260) togglePlaySafe();
+
+    const dx = e.clientX - g.x;
+    const dy = e.clientY - g.y;
+    // 右滑一键清屏 / 退出清屏
+    if (dx > 45 && Math.abs(dx) > Math.abs(dy) * 1.5 && Date.now() - g.t < 350) {
+      setCleanScreen((v) => !v);
+      try { navigator.vibrate?.(15); } catch { /* ignore */ }
+      return;
+    }
+
+    // 双击检测：炸裂爱心粒子 + 点赞
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (now - last.t < 280 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 40) {
+      lastTapRef.current = { t: 0, x: 0, y: 0 };
+      if (curId && !isLiked(curId)) onLike();
+      try { navigator.vibrate?.(25); } catch { /* ignore */ }
+      const newHeart = {
+        id: now,
+        x: e.clientX,
+        y: e.clientY,
+        rot: (Math.random() - 0.5) * 36,
+      };
+      setBurstHearts((prev) => [...prev.slice(-3), newHeart]);
+      setTimeout(() => {
+        setBurstHearts((prev) => prev.filter((h) => h.id !== newHeart.id));
+      }, 750);
+      return;
+    }
+    lastTapRef.current = { t: now, x: e.clientX, y: e.clientY };
+
+    if (now - g.t < 260) {
+      if (cleanScreen) {
+        setCleanScreen(false);
+      } else {
+        togglePlaySafe();
+      }
+    }
   };
 
   /* 长按倍速期间禁止原生滚动，否则上滑会被列表吃掉、锁不住倍速 */
@@ -638,7 +683,7 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
                   onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
                 <VideoSurface ref={videoRef} src={playUrl} poster={posterUrl} autoPlay muted={muted}
                   volume={volume} rate={effRate}
-                  fit={isDesktop || (vsize.w > 0 && vsize.w > vsize.h) ? "contain" : "cover"}
+                  fit={customFit ? customFit : (isDesktop || (vsize.w > 0 && vsize.w > vsize.h) ? "contain" : "cover")}
                   onClick={() => { if (isDesktop) togglePlaySafe(); }}
                   onTime={handleTime}
                   onDuration={handleDuration}
@@ -685,7 +730,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
                     <small>{index + 1} / {videoIds.length}</small>
                   </div>
                 ) : (
-                  <div className="absolute inset-x-0 z-20 flex items-center gap-2 px-2.5" style={{ top: "calc(var(--sat, 0px) + 8px)" }}>
+                  <div className="absolute inset-x-0 z-20 flex items-center gap-2 px-2.5 transition-opacity duration-200"
+                    style={{ top: "calc(var(--sat, 0px) + 8px)", opacity: cleanScreen ? 0 : 1, pointerEvents: cleanScreen ? "none" : "auto" }}>
                     <button onClick={onBack} className="w-9 h-9 rounded-full bg-black/45 flex items-center justify-center text-white pressable elev-1"><IBack size={20} /></button>
                     <span className="text-[14.5px] font-semibold text-white tsh truncate">{title}</span>
                     <span className="ml-auto px-2 py-0.5 rounded-full bg-black/45 text-[11px] font-semibold text-white/80">{index + 1} / {videoIds.length}</span>
@@ -701,8 +747,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
 
               {/* 右侧操作栏 */}
               {!fs && (
-              <div className={`absolute z-20 flex flex-col items-center ${isDesktop ? "desktop-social" : "right-3"}`}
-                style={isDesktop ? undefined : { bottom: `calc(var(--sab, 0px) + ${bottomInset + 104}px)` }}>
+              <div className={`absolute z-20 flex flex-col items-center transition-opacity duration-200 ${isDesktop ? "desktop-social" : "right-3"}`}
+                style={isDesktop ? undefined : { bottom: `calc(var(--sab, 0px) + ${bottomInset + 104}px)`, opacity: cleanScreen ? 0 : 1, pointerEvents: cleanScreen ? "none" : "auto" }}>
                 {isDesktop && (
                   <div className="desktop-browse-inline">
                     <button onClick={() => go(-1)} disabled={index === 0} aria-label="上一个" title="上一个 ↑">
@@ -749,6 +795,23 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
                       <IList size={26} className="text-white tsh" />
                       <span className="text-[10.5px] text-white/90">选集</span>
                     </button>
+
+                    <button onClick={() => setCleanScreen(true)} className="flex flex-col items-center gap-1 pressable" title="清屏纯享">
+                      <IScreenClean size={26} className="text-white tsh" />
+                      <span className="text-[10.5px] text-white/90">清屏</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const next = customFit === "contain" ? "cover" : "contain";
+                        setCustomFit(next);
+                        toast(next === "contain" ? "已切至完整比例（字幕完整）" : "已切至全屏撑满", "info");
+                      }}
+                      className="flex flex-col items-center gap-1 pressable"
+                      title="画面比例">
+                      <IAspect size={25} className={`tsh ${customFit === "contain" ? "text-amber" : "text-white"}`} />
+                      <span className="text-[10.5px] text-white/90">{customFit === "contain" ? "比例" : "撑满"}</span>
+                    </button>
                   </>
                 )}
 
@@ -764,8 +827,8 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
 
               {/* 左下信息：整体下移紧贴进度条，去掉标签/评分行避免挤占画面 */}
               {!fs && (
-              <div className={isDesktop ? "desktop-video-meta" : "absolute left-3.5 right-[76px] z-20"}
-                style={isDesktop ? undefined : { bottom: `calc(var(--sab, 0px) + ${bottomInset + 22}px)` }}>
+              <div className={isDesktop ? "desktop-video-meta" : "absolute left-3.5 right-[76px] z-20 transition-opacity duration-200"}
+                style={isDesktop ? undefined : { bottom: `calc(var(--sab, 0px) + ${bottomInset + 22}px)`, opacity: cleanScreen ? 0 : 1, pointerEvents: cleanScreen ? "none" : "auto" }}>
                 {/* VIP 试看状态胶囊 / 会员标识 */}
                 {hasVideo && (
                   <div className="mb-2">
@@ -957,11 +1020,43 @@ export default function Feed({ videoIds, startIndex = 0, title = "", mode, kind 
         </div>
       )}
 
+      {/* 移动端：常驻极简时间进度（进度条右上方） */}
+      {!isDesktop && !fs && duration > 0 && !cleanScreen && (
+        <div
+          className="absolute right-3.5 z-20 pointer-events-none flex items-center gap-1 text-[11px] font-bold text-white/85 tabular-nums tsh"
+          style={{ bottom: `calc(var(--sab, 0px) + ${bottomInset + 20}px)` }}>
+          <span className="text-white/95">{fmtTime(time)}</span>
+          <span className="text-white/40">/</span>
+          <span className="text-white/60">{fmtTime(duration)}</span>
+        </div>
+      )}
+
+      {/* 移动端：清屏纯享模式下的恢复按钮 */}
+      {!isDesktop && !fs && cleanScreen && (
+        <button
+          onClick={() => setCleanScreen(false)}
+          className="absolute right-3.5 z-40 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-[11px] font-bold text-white pressable flex items-center gap-1.5 shadow-lg a-pop"
+          style={{ bottom: `calc(var(--sab, 0px) + ${bottomInset + 20}px)` }}>
+          <IScreenClean size={13} />
+          <span>退出清屏</span>
+        </button>
+      )}
+
+      {/* 屏幕双击炸裂爱心粒子层 */}
+      {burstHearts.map((h) => (
+        <div
+          key={h.id}
+          className="pointer-events-none fixed z-50 a-heart-pop"
+          style={{ left: h.x, top: h.y, ["--rot" as string]: `${h.rot}deg` }}>
+          <IHeartF size={68} className="text-[#ff2957] drop-shadow-[0_4px_18px_rgba(255,41,87,0.75)]" />
+        </div>
+      ))}
+
       {/* 移动端：全屏入口 */}
       {!isDesktop && !fs && (
         <button onClick={() => setFs(true)} aria-label="全屏"
-          className="absolute right-3.5 z-20 w-9 h-9 rounded-full bg-black/45 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 pressable elev-1"
-          style={{ bottom: `calc(var(--sab, 0px) + ${bottomInset + 56}px)` }}>
+          className="absolute right-3.5 z-20 w-9 h-9 rounded-full bg-black/45 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 pressable elev-1 transition-opacity duration-200"
+          style={{ bottom: `calc(var(--sab, 0px) + ${bottomInset + 56}px)`, opacity: cleanScreen ? 0 : 1, pointerEvents: cleanScreen ? "none" : "auto" }}>
           <IExpand size={17} />
         </button>
       )}

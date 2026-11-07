@@ -97,26 +97,13 @@ export const CAT_ICONS: Record<string, ReturnType<typeof S>> = {
 
 export function Logo({ size = 28, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="hg-bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#1b1512" />
-          <stop offset="100%" stopColor="#0c0d14" />
-        </linearGradient>
-        <linearGradient id="hg-fruit" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ffe28a" />
-          <stop offset="48%" stopColor="#ffa826" />
-          <stop offset="100%" stopColor="#ff4e32" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="44" height="44" rx="12" fill="url(#hg-bg)" stroke="rgba(255,204,102,0.32)" strokeWidth="1.5" />
-      {/* 顶部果叶 */}
-      <path d="M24 9.5c2.5-3.2 6.8-3.8 9.2-2.2-1.2 3.2-4.6 4.6-9.2 2.2Z" fill="#ffd66b" />
-      {/* 饱满金果主体 */}
-      <circle cx="24" cy="26" r="13.5" fill="url(#hg-fruit)" />
-      {/* 内部播放三角 */}
-      <path d="M21.4 20.5c0-.8.9-1.3 1.6-.9l7.6 4.6c.7.4.7 1.4 0 1.8L23 30.6c-.7.4-1.6-.1-1.6-.9v-9.2Z" fill="#181109" />
-    </svg>
+    <img
+      src="/logo.png"
+      width={size}
+      height={size}
+      alt="黄果"
+      className={`rounded-(--r-sm) object-contain inline-block shrink-0 ${className}`}
+    />
   );
 }
 export const IList = S(<><path d="M8.5 6.5h11" /><path d="M8.5 12h11" /><path d="M8.5 17.5h11" /><circle cx="4.6" cy="6.5" r="1.2" fill="currentColor" stroke="none" /><circle cx="4.6" cy="12" r="1.2" fill="currentColor" stroke="none" /><circle cx="4.6" cy="17.5" r="1.2" fill="currentColor" stroke="none" /></>);
@@ -125,3 +112,5 @@ export const IInfo = S(<><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.2" 
 
 export const IBroom = S(<><path d="M14.5 4.5 9 10" /><path d="m9.6 8.6 5.8 5.8" /><path d="M8.4 13.6c-2 1.1-3.2 2.9-3.6 5.4 2.5-.4 4.3-1.6 5.4-3.6" /><path d="m11.6 11.4-1.2 1.2" /></>);
 export const IShield = S(<><path d="M12 3 4.5 6.2v5.3c0 5 3.2 8.6 7.5 9.8 4.3-1.2 7.5-4.8 7.5-9.8V6.2L12 3Z" /><path d="m9.5 12 1.8 1.8 3.4-3.6" /></>);
+export const IScreenClean = S(<><path d="M3.5 8.5V4.5h4" /><path d="M20.5 8.5V4.5h-4" /><path d="M3.5 15.5v4h4" /><path d="M20.5 15.5v-4h-4" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /></>);
+export const IAspect = S(<><rect x="3.5" y="5.5" width="17" height="13" rx="2" /><path d="M7 9h10v6H7z" strokeDasharray="2 2" /></>);

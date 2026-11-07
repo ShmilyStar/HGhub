@@ -94,8 +94,8 @@ export function ToastHost() {
   const { toasts } = useStore();
   return (
     <div
-      className="fixed inset-x-0 z-[140] flex flex-col items-center gap-2 pointer-events-none px-4"
-      style={{ top: "calc(var(--sat, 0px) + 14px)" }}>
+      className="fixed inset-x-0 z-[140] flex flex-col-reverse items-center gap-2 pointer-events-none px-4"
+      style={{ bottom: "calc(var(--sab, 0px) + 108px)" }}>
       {toasts.map((t) => (
         <div key={t.id} className="a-toast pointer-events-auto flex items-center gap-2 max-w-[90vw] glass-pill rounded-full px-4 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.5)] border border-white/15">
           {t.icon === "ok" && <ICheck size={15} className="text-mint shrink-0" />}

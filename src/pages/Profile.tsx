@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, APP_VERSION, fmt, logLine, platform } from "../api";
 import type { Detail } from "../types";
 import { formatVipExpire, useStore } from "../store";
@@ -17,41 +17,68 @@ export default function Profile({ wide: _wide, bottomInset = 78 }: { wide: boole
     setDisguiseEnabled, setDisguisePin, setDisguiseIconSync, lockDisguiseNow,
   } = useStore();
   const [tab, setTab] = useState<"fav" | "history">("fav");
-  const [cards, setCards] = useState<Detail[]>([]);
+  const [tabRatio, setTabRatio] = useState(0);
+  const swiperRef = useRef<HTMLDivElement>(null);
+  const [favCards, setFavCards] = useState<Detail[]>([]);
+  const [histCards, setHistCards] = useState<Detail[]>([]);
   const [about, setAbout] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+  const [histLoading, setHistLoading] = useState(false);
   const [pinEditing, setPinEditing] = useState(false);
   const [pinDraft, setPinDraft] = useState(disguisePin);
 
   const vipInfo = formatVipExpire(vipExpireAt);
-  const ids = tab === "fav" ? favs : history;
 
   useEffect(() => {
     let alive = true;
-    if (!ids.length) { setCards([]); return; }
-    setLoading(true);
-    Promise.allSettled(ids.slice(0, 12).map((id) => api.video(id)))
+    if (!favs.length) { setFavCards([]); return; }
+    setFavLoading(true);
+    Promise.allSettled(favs.slice(0, 12).map((id) => api.video(id)))
       .then((rs) => {
         if (!alive) return;
-        setCards(rs.filter((r) => r.status === "fulfilled").map((r) => (r as PromiseFulfilledResult<Detail>).value));
+        setFavCards(rs.filter((r) => r.status === "fulfilled").map((r) => (r as PromiseFulfilledResult<Detail>).value));
       })
-      .finally(() => { if (alive) setLoading(false); });
+      .finally(() => { if (alive) setFavLoading(false); });
     return () => { alive = false; };
-  }, [ids.join(",")]);
+  }, [favs.join(",")]);
+
+  useEffect(() => {
+    let alive = true;
+    if (!history.length) { setHistCards([]); return; }
+    setHistLoading(true);
+    Promise.allSettled(history.slice(0, 12).map((id) => api.video(id)))
+      .then((rs) => {
+        if (!alive) return;
+        setHistCards(rs.filter((r) => r.status === "fulfilled").map((r) => (r as PromiseFulfilledResult<Detail>).value));
+      })
+      .finally(() => { if (alive) setHistLoading(false); });
+    return () => { alive = false; };
+  }, [history.join(",")]);
+
+  const scrollToTab = (idx: number) => {
+    const el = swiperRef.current;
+    if (!el) return;
+    el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" });
+    setTab(idx === 0 ? "fav" : "history");
+    setTabRatio(idx);
+  };
+
+  const onSwiperScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const w = el.clientWidth || 1;
+    const r = Math.max(0, Math.min(1, el.scrollLeft / w));
+    setTabRatio(r);
+    if (r < 0.3) setTab("fav");
+    else if (r > 0.7) setTab("history");
+  };
 
   return (
     <div className="absolute inset-0 bg-bg page-aura flex flex-col">
       {/* 顶部标题栏 */}
       <div className="shrink-0 px-4 pb-2 flex items-center justify-between" style={{ paddingTop: "calc(var(--sat, 0px) + 14px)" }}>
         <div className="text-[24px] font-black tracking-tight text-on leading-none">我的</div>
-        <button
-          onClick={() => setVipModalOpen(true)}
-          className="h-7.5 px-3 rounded-full gold-grad text-[11px] font-extrabold flex items-center gap-1 pressable shadow-[0_4px_14px_rgba(247,195,85,0.25)]">
-          <ISparkF size={12} />
-          {vipInfo.isVip ? "续期卡密" : "卡密激活"}
-        </button>
       </div>
 
       {/* 主体滚动容器（确保底部留出充足安全区，绝不被底栏遮盖） */}
@@ -220,47 +247,109 @@ export default function Profile({ wide: _wide, bottomInset = 78 }: { wide: boole
           </div>
         )}
 
-        {/* 收藏 / 历史 切换栏 */}
-        <div className="flex bg-black/30 border border-white/8 rounded-(--r-ctl) p-1 mt-3.5">
-          {([["fav", "我的收藏"], ["history", "观看历史"]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={`flex-1 h-8 rounded-(--r-ctl) text-[12px] font-bold pressable ${tab === k ? "brand-grad glow-neon" : "text-mut"}`}>{l}</button>
-          ))}
+        {/* 收藏 / 历史 切换栏（水银流动指示胶囊） */}
+        <div className="relative flex bg-black/30 border border-white/8 rounded-(--r-ctl) p-1 mt-3.5">
+          <div
+            className="absolute top-1 bottom-1 rounded-(--r-ctl) brand-grad glow-neon transition-transform duration-75 ease-out pointer-events-none"
+            style={{
+              width: "calc(50% - 4px)",
+              left: 4,
+              transform: `translateX(${tabRatio * 100}%)`,
+              willChange: "transform",
+            }}
+          />
+          <button
+            onClick={() => scrollToTab(0)}
+            className={`relative z-10 flex-1 h-8 text-[12px] font-bold pressable transition-colors ${tabRatio < 0.5 ? "text-white" : "text-mut"}`}>
+            我的追剧
+          </button>
+          <button
+            onClick={() => scrollToTab(1)}
+            className={`relative z-10 flex-1 h-8 text-[12px] font-bold pressable transition-colors ${tabRatio >= 0.5 ? "text-white" : "text-mut"}`}>
+            观看历史
+          </button>
         </div>
 
-        <div className="mt-2.5">
-          {loading ? (
-            <div className="flex justify-center py-8"><div className="w-7 h-7 spinner" /></div>
-          ) : cards.length ? (
-            <div className="grid grid-cols-3 gap-2">
-              {cards.map((c) => {
-                const prog = progress[c.id];
-                const totalEp = c.episodes?.length || prog?.totalEp || 0;
-                return (
-                  <button key={c.id} onClick={() => push({ kind: "feed", videoIds: cards.map((x) => x.id), index: cards.findIndex((x) => x.id === c.id), title: tab === "fav" ? "我的收藏" : "观看历史" })}
-                    className="relative rounded-(--r-sm) overflow-hidden bg-s1 elev-1 ring-1 ring-white/8 pressable text-left" style={{ paddingTop: "135%" }}>
-                    <Img src={c.cover} />
-                    {prog && prog.ep >= 1 && (
-                      <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-amber/30 text-[9.5px] font-bold text-[#ffd27d]">
-                        看至第{prog.ep}{totalEp ? `/${totalEp}` : ""}集
-                      </span>
-                    )}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/92 via-black/50 to-transparent p-2">
-                      <div className="text-[11px] font-semibold text-white clamp-2 leading-tight">{c.title}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <Empty icon={tab === "fav" ? <IStar size={24} /> : <IClock size={24} />}
-              title={tab === "fav" ? "暂无追剧收藏" : "暂无观看记录"}
-              sub={tab === "fav" ? "在剧集播放页点击星标，即可加入收藏" : "看过的剧集会自动在此记录进度"}
-              action="去看看热播剧" onAction={() => push({ kind: "ranks" })} />
-          )}
-          {cards.length > 0 && tab === "history" && (
-            <button onClick={clearHistory} className="mt-2.5 w-full h-8.5 rounded-(--r-ctl) glass-card text-[11.5px] text-mut pressable">清空观看历史</button>
-          )}
+        {/* 1:1 跟手滑动双页容器 */}
+        <div
+          ref={swiperRef}
+          onScroll={onSwiperScroll}
+          className="mt-2.5 flex overflow-x-auto no-bar snap-x snap-mandatory"
+          style={{ overscrollBehaviorX: "contain" }}>
+          <div className="w-full shrink-0 snap-start pr-1">
+            {favLoading ? (
+              <div className="flex justify-center py-8"><div className="w-7 h-7 spinner" /></div>
+            ) : favCards.length ? (
+              <div className="grid grid-cols-3 gap-2">
+                {favCards.map((c) => {
+                  const prog = progress[c.id];
+                  const totalEp = c.episodes?.length || prog?.totalEp || 0;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => push({ kind: "feed", videoIds: favCards.map((x) => x.id), index: favCards.findIndex((x) => x.id === c.id), title: "我的追剧" })}
+                      className="relative rounded-(--r-sm) overflow-hidden bg-s1 elev-1 ring-1 ring-white/8 pressable text-left" style={{ paddingTop: "135%" }}>
+                      <Img src={c.cover} />
+                      {prog && prog.ep >= 1 && (
+                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-amber/30 text-[9.5px] font-bold text-[#ffd27d]">
+                          看至第{prog.ep}{totalEp ? `/${totalEp}` : ""}集
+                        </span>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/92 via-black/50 to-transparent p-2">
+                        <div className="text-[11px] font-semibold text-white clamp-2 leading-tight">{c.title}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <Empty
+                icon={<IStar size={24} />}
+                title="暂无追剧收藏"
+                action="去看看热播剧"
+                onAction={() => push({ kind: "ranks" })}
+              />
+            )}
+          </div>
+
+          <div className="w-full shrink-0 snap-start pl-1">
+            {histLoading ? (
+              <div className="flex justify-center py-8"><div className="w-7 h-7 spinner" /></div>
+            ) : histCards.length ? (
+              <div>
+                <div className="grid grid-cols-3 gap-2">
+                  {histCards.map((c) => {
+                    const prog = progress[c.id];
+                    const totalEp = c.episodes?.length || prog?.totalEp || 0;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => push({ kind: "feed", videoIds: histCards.map((x) => x.id), index: histCards.findIndex((x) => x.id === c.id), title: "观看历史" })}
+                        className="relative rounded-(--r-sm) overflow-hidden bg-s1 elev-1 ring-1 ring-white/8 pressable text-left" style={{ paddingTop: "135%" }}>
+                        <Img src={c.cover} />
+                        {prog && prog.ep >= 1 && (
+                          <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-amber/30 text-[9.5px] font-bold text-[#ffd27d]">
+                            看至第{prog.ep}{totalEp ? `/${totalEp}` : ""}集
+                          </span>
+                        )}
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/92 via-black/50 to-transparent p-2">
+                          <div className="text-[11px] font-semibold text-white clamp-2 leading-tight">{c.title}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={clearHistory} className="mt-2.5 w-full h-8.5 rounded-(--r-ctl) glass-card text-[11.5px] text-mut pressable">清空观看历史</button>
+              </div>
+            ) : (
+              <Empty
+                icon={<IClock size={24} />}
+                title="暂无观看记录"
+                action="去看看热播剧"
+                onAction={() => push({ kind: "ranks" })}
+              />
+            )}
+          </div>
         </div>
 
         {/* 系统设置栏 */}
