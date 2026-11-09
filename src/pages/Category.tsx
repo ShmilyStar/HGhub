@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, fmt } from "../api";
 import type { Post, VideoCard } from "../types";
 import { useStore } from "../store";
@@ -19,29 +19,54 @@ export default function Category({ wide }: { wide: boolean }) {
   const [rows, setRows] = useState<Record<string, VideoCard[]>>({});
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failedCates, setFailedCates] = useState<Record<string, boolean>>({});
+  const [postsFailed, setPostsFailed] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    const failedMap: Record<string, boolean> = {};
+    let anySuccess = false;
+
+    const entries = await Promise.all(
+      CHANNELS.map(async (c) => {
+        try {
+          const res = await api.category(c.cate, 1, 8);
+          const items = res?.items || [];
+          if (items.length > 0) anySuccess = true;
+          return [c.cate, items] as const;
+        } catch {
+          failedMap[c.cate] = true;
+          return [c.cate, [] as VideoCard[]] as const;
+        }
+      }),
+    );
+
+    let p: Post[] = [];
+    let pFailed = false;
+    try {
+      p = (await api.posts(1, 8))?.items || [];
+      if (p.length > 0) anySuccess = true;
+    } catch {
+      pFailed = true;
+      p = [];
+    }
+
+    setRows(Object.fromEntries(entries));
+    setPosts(p);
+    setFailedCates(failedMap);
+    setPostsFailed(pFailed);
+    setLoading(false);
+
+    if (!anySuccess && Object.keys(failedMap).length > 0) {
+      setErr("部分频道连接异常，可能处于代理建立期");
+    }
+  }, []);
 
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      const entries = await Promise.all(
-        CHANNELS.map(async (c) => {
-          try {
-            const res = await api.category(c.cate, 1, 8);
-            return [c.cate, res?.items || []] as const;
-          } catch {
-            return [c.cate, [] as VideoCard[]] as const;
-          }
-        }),
-      );
-      let p: Post[] = [];
-      try { p = (await api.posts(1, 8))?.items || []; } catch { p = []; }
-      if (!alive) return;
-      setRows(Object.fromEntries(entries));
-      setPosts(p);
-      setLoading(false);
-    })();
-    return () => { alive = false; };
-  }, []);
+    loadAll();
+  }, [loadAll]);
 
   return (
     <div className="absolute inset-0 bg-bg page-aura flex flex-col">
@@ -53,6 +78,17 @@ export default function Category({ wide }: { wide: boolean }) {
       </div>
 
       <div className="flex-1 scroll-y pt-2" style={{ paddingBottom: "calc(var(--sab, 0px) + 96px)" }}>
+        {err && (
+          <div className="mx-4 mb-4 p-3 rounded-(--r-md) bg-white/5 border border-amber/30 flex items-center justify-between gap-2">
+            <span className="text-[12px] text-white/80">{err}</span>
+            <button
+              onClick={loadAll}
+              className="px-3 py-1 rounded-full brand-grad text-white text-[11.5px] font-bold pressable shrink-0">
+              重新加载
+            </button>
+          </div>
+        )}
+
         {/* 排行榜入口（大厂黑金/暖色流光横幅） */}
         <button onClick={() => push({ kind: "ranks" })}
           className="mx-4 mb-5 w-[calc(100%-2rem)] flex items-center gap-3.5 rounded-(--r-md) glass-card p-3.5 text-left pressable relative overflow-hidden">
@@ -90,7 +126,36 @@ export default function Category({ wide }: { wide: boolean }) {
                 {list.map((v) => (
                   <RowCard key={v.id} v={v} onOpen={() => push({ kind: "feed", videoIds: list.map((x) => x.id), index: list.findIndex((x) => x.id === v.id), title: c.name })} />
                 ))}
-                {!list.length && <div className="h-[150px] flex items-center text-[11.5px] text-dim px-1">{loading ? "加载中…" : "暂无内容"}</div>}
+                {!list.length && (
+                  <div className="h-[150px] flex items-center gap-2 text-[11.5px] text-dim px-2">
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 spinner" />
+                        <span>频道加载中…</span>
+                      </>
+                    ) : failedCates[c.cate] ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-white/60">加载失败</span>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await api.category(c.cate, 1, 8);
+                              const items = res?.items || [];
+                              setRows((r) => ({ ...r, [c.cate]: items }));
+                              setFailedCates((f) => ({ ...f, [c.cate]: false }));
+                            } catch {
+                              /* ignore */
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[#ffd27d] font-semibold text-[11px] pressable">
+                          重试
+                        </button>
+                      </div>
+                    ) : (
+                      "暂无内容"
+                    )}
+                  </div>
+                )}
               </div>
             </section>
           );
@@ -123,7 +188,35 @@ export default function Category({ wide }: { wide: boolean }) {
                 <div className="mt-2 text-[12px] font-semibold text-on clamp-1 leading-tight">{post.title}</div>
               </button>
             ))}
-            {!posts.length && <div className="h-[150px] flex items-center text-[11.5px] text-dim px-1">{loading ? "加载中…" : "暂无内容"}</div>}
+            {!posts.length && (
+              <div className="h-[150px] flex items-center gap-2 text-[11.5px] text-dim px-2">
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 spinner" />
+                    <span>内容加载中…</span>
+                  </>
+                ) : postsFailed ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/60">加载失败</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const p = (await api.posts(1, 8))?.items || [];
+                          setPosts(p);
+                          setPostsFailed(false);
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-[#ffd27d] font-semibold text-[11px] pressable">
+                      重试
+                    </button>
+                  </div>
+                ) : (
+                  "暂无内容"
+                )}
+              </div>
+            )}
           </div>
         </section>
 

@@ -11,9 +11,12 @@ export default function Home({ active, bottomInset }: { active: boolean; bottomI
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [resumeItem, setResumeItem] = useState<{ id: number; title: string; ep: number } | null>(null);
   const [resumeDismissed, setResumeDismissed] = useState(false);
   const loadingRef = useRef(false);
+  const retryTimerRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
 
   useEffect(() => {
     const lastId = history[0];
@@ -28,28 +31,98 @@ export default function Home({ active, bottomInset }: { active: boolean; bottomI
     }
   }, [history[0]]);
 
-  const load = useCallback(async (p: number) => {
-    if (loadingRef.current || done) return;
+  const load = useCallback(async (p: number, isAutoRetry = false) => {
+    if (loadingRef.current) return;
+    if (p > 1 && done) return;
+
+    if (!isAutoRetry && p === 1) {
+      retryCountRef.current = 0;
+    }
+
     loadingRef.current = true;
     setLoading(true);
+    if (p === 1) {
+      setError(null);
+      setDone(false);
+    }
+
     try {
       const res = await api.feed(p, 10);
       const list = res?.items || [];
-      setItems((prev) => {
-        const seen = new Set(prev.map((x) => x.id));
-        return [...prev, ...list.filter((x) => !seen.has(x.id))];
-      });
-      setPage(p);
-      if (!list.length || (res?.pagination && p >= res.pagination.pages)) setDone(true);
+      if (list.length > 0) {
+        setItems((prev) => {
+          const seen = new Set(prev.map((x) => x.id));
+          return [...prev, ...list.filter((x) => !seen.has(x.id))];
+        });
+        setPage(p);
+        setError(null);
+        retryCountRef.current = 0;
+        if (res?.pagination && p >= res.pagination.pages) {
+          setDone(true);
+        }
+      } else {
+        if (p === 1) {
+          if (retryCountRef.current < 3) {
+            const delay = [700, 1600, 3000][retryCountRef.current] || 2000;
+            retryCountRef.current += 1;
+            loadingRef.current = false;
+            setLoading(true);
+            if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = window.setTimeout(() => {
+              load(1, true);
+            }, delay);
+            return;
+          } else {
+            setError("未能获取到推荐剧集，请点击重试");
+          }
+        } else {
+          setDone(true);
+        }
+      }
     } catch (e) {
-      toast((e as Error).message || "加载失败", "info");
+      const msg = (e as Error).message || "加载失败";
+      if (p === 1) {
+        if (retryCountRef.current < 3) {
+          const delay = [700, 1600, 3000][retryCountRef.current] || 2000;
+          retryCountRef.current += 1;
+          loadingRef.current = false;
+          setLoading(true);
+          if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+          retryTimerRef.current = window.setTimeout(() => {
+            load(1, true);
+          }, delay);
+          return;
+        } else {
+          setError(msg);
+          toast(msg, "info");
+        }
+      } else {
+        toast(msg, "info");
+      }
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
   }, [done, toast]);
 
-  useEffect(() => { if (!items.length) load(1); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    return () => {
+      if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+    };
+  }, []);
+
+  // 1. 挂载首次拉取
+  useEffect(() => {
+    if (!items.length) load(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 2. 切回首页时（active: false -> true），若列表仍为空且未在加载，自动拉取
+  useEffect(() => {
+    if (active && !items.length && !loadingRef.current) {
+      load(1);
+    }
+  }, [active, items.length, load]);
 
   const ids = items.map((v) => v.id);
 
@@ -58,8 +131,26 @@ export default function Home({ active, bottomInset }: { active: boolean; bottomI
       {items.length ? (
         <Feed videoIds={ids} mode="home" active={active} bottomInset={bottomInset}
           onNearEnd={() => { if (!loading && !done) load(page + 1); }} />
+      ) : loading ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+          <div className="w-9 h-9 spinner" />
+          <span className="text-[12px] text-white/50 tracking-wider font-medium">推荐加载中…</span>
+        </div>
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center"><div className="w-9 h-9 spinner" /></div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+          <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-amber mb-3 shadow-[0_0_24px_rgba(247,195,85,0.18)]">
+            <span className="text-[22px]">⚠️</span>
+          </div>
+          <div className="text-[15px] font-bold text-white mb-1">推荐加载失败</div>
+          <div className="text-[12px] text-white/50 max-w-[260px] mb-4 leading-relaxed">
+            {error || "网络连接异常或代理预热中，请点击重试"}
+          </div>
+          <button
+            onClick={() => { setError(null); load(1); }}
+            className="px-6 h-9 rounded-full brand-grad text-white text-[13px] font-bold shadow-lg pressable">
+            点击重试
+          </button>
+        </div>
       )}
 
       {/* 顶部浮动：继续追剧胶囊 */}

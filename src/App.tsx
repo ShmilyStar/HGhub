@@ -88,8 +88,6 @@ function AppBody() {
   const mainRef = useRef<HTMLDivElement>(null);
   const [wide, setWide] = useState(platform !== "android");
   const [collapsed, setCollapsed] = useState(false);
-  const lastBackTime = useRef(0);
-
   useLayoutEffect(() => {
     const el = mainRef.current;
     if (!el) return;
@@ -98,52 +96,6 @@ function AppBody() {
     setWide(el.clientWidth > 640);
     return () => ro.disconnect();
   }, []);
-
-  /* 安卓侧滑返回手势 & 系统回退拦截（优先关抽屉/关弹窗/退栈页，根页面双击退出） */
-  useEffect(() => {
-    if (platform !== "android") return;
-    const pushState = () => {
-      try { window.history.pushState({ app: "hg" }, ""); } catch { /* ignore */ }
-    };
-    pushState();
-
-    const onPop = () => {
-      // 1. 优先给当前打开的浮层/抽屉消费
-      if (runBack()) {
-        pushState();
-        return;
-      }
-      // 2. 弹窗优先关闭
-      if (vipModalOpen) {
-        setVipModalOpen(false);
-        pushState();
-        return;
-      }
-      if (loginOpen) {
-        setLoginOpen(false);
-        pushState();
-        return;
-      }
-      // 3. 栈页面（从分类/搜索进的播放页等）退回上一级
-      if (stack.length > 0) {
-        pop();
-        pushState();
-        return;
-      }
-      // 4. 主页根级：双击防误退提示
-      const now = Date.now();
-      if (now - lastBackTime.current < 2000) {
-        // 2秒内连击两次，放行让安卓系统退出或退出应用
-      } else {
-        lastBackTime.current = now;
-        pushState();
-        toast("再按一次退出黄果", "info");
-      }
-    };
-
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, [platform, stack.length, pop, loginOpen, setLoginOpen, vipModalOpen, setVipModalOpen, toast]);
 
   /* 全局键盘 */
   useEffect(() => {
@@ -278,10 +230,11 @@ function MobileShell() {
 
 /* ============ 入口 ============ */
 export default function App() {
-  const { platform, loginOpen, setLoginOpen, vipModalOpen, setVipModalOpen, tab, setTab, stack, pop, fs, setFs, disguiseLocked } = useStore();
+  const { platform, loginOpen, setLoginOpen, vipModalOpen, setVipModalOpen, tab, setTab, stack, pop, fs, setFs, disguiseLocked, toast } = useStore();
+  const lastBackTime = useRef(0);
 
   /* —— 安卓硬件返回键 ——
-     层级：计算器伪装层 → 全屏 → 面板/弹层 → VIP框/登录框 → 页面栈 → 回首页 → 退出应用。 */
+     层级：计算器伪装层 → 全屏 → 面板/弹层 → VIP框/登录框 → 页面栈 → 回首页 → 双击防误退退出。 */
   const backRef = useRef<() => void>(() => {});
   backRef.current = () => {
     if (disguiseLocked) {
@@ -295,7 +248,13 @@ export default function App() {
     if (loginOpen) { setLoginOpen(false); return; }
     if (stack.length) { pop(); return; }
     if (tab !== "home") { setTab("home"); return; }
-    invoke("plugin:app|exit", { code: 0 }).catch(() => {});
+    const now = Date.now();
+    if (now - lastBackTime.current < 2000) {
+      invoke("plugin:app|exit", { code: 0 }).catch(() => {});
+    } else {
+      lastBackTime.current = now;
+      toast("再按一次退出黄果", "info");
+    }
   };
 
   useEffect(() => {

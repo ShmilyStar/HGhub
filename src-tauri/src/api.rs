@@ -133,24 +133,49 @@ pub async fn api_me(state: State<'_, Api>) -> Result<Value, String> {
 /* ───────────────────────── 列表 ───────────────────────── */
 
 #[tauri::command]
-pub async fn api_feed(state: State<'_, Api>, page: u32, size: u32) -> Result<Value, String> {
-    state
-        .get(&format!("/api/videos?page={page}&size={size}"))
-        .await
+pub async fn api_feed(
+    app: tauri::AppHandle,
+    state: State<'_, Api>,
+    page: u32,
+    size: u32,
+) -> Result<Value, String> {
+    match state.get(&format!("/api/videos?page={page}&size={size}")).await {
+        Ok(v) => {
+            let count = v.get("items").and_then(|i| i.as_array()).map(|a| a.len()).unwrap_or(0);
+            let _ = debug_log(app, format!("[api] api_feed p={} sz={} → items={}", page, size, count)).await;
+            Ok(v)
+        }
+        Err(e) => {
+            let _ = debug_log(app, format!("[api] api_feed p={} sz={} → err: {}", page, size, e)).await;
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn api_category(
+    app: tauri::AppHandle,
     state: State<'_, Api>,
     cate: String,
     page: u32,
     size: u32,
 ) -> Result<Value, String> {
-    state
+    match state
         .get(&format!(
             "/api/videos/category/{cate}?page={page}&size={size}"
         ))
         .await
+    {
+        Ok(v) => {
+            let count = v.get("items").and_then(|i| i.as_array()).map(|a| a.len()).unwrap_or(0);
+            let _ = debug_log(app, format!("[api] api_category cate={} p={} → items={}", cate, page, count)).await;
+            Ok(v)
+        }
+        Err(e) => {
+            let _ = debug_log(app, format!("[api] api_category cate={} p={} → err: {}", cate, page, e)).await;
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]

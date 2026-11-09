@@ -128,13 +128,13 @@ where
     Fut: std::future::Future<Output = Result<T, String>>,
 {
     let mut last = String::from("network error");
-    for attempt in 0..3 {
+    for attempt in 0..4 {
         match f().await {
             Ok(v) => return Ok(v),
             Err(e) => {
                 last = e;
-                if attempt < 2 {
-                    tokio::time::sleep(Duration::from_millis(350 * (attempt as u64 + 1))).await;
+                if attempt < 3 {
+                    tokio::time::sleep(Duration::from_millis(800 * (1 << attempt))).await;
                 }
             }
         }
